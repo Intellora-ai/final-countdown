@@ -16,34 +16,36 @@ export function prepareSvg(source: string) {
   const ids = Array.from(input.querySelectorAll('[id]')).map(element => element.id)
   if (new Set(ids).size !== ids.length) throw new Error('SVG element IDs must be unique.')
   // Avoid IDs such as 'blur' being stripped as browser-global name collisions.
-  for (const element of [input.documentElement, ...Array.from(input.querySelectorAll('*'))]) {
+  for (const element of Array.from(input.querySelectorAll('*'))) {
     for (const attr of Array.from(element.attributes)) {
       if (attr.name === 'id') attr.value = `board-${attr.value}`
       else if (['href', 'xlink:href'].includes(attr.name) && attr.value.startsWith('#')) attr.value = `#board-${attr.value.slice(1)}`
-      else attr.value = attr.value.replace(/url\(\s*(['"]?)#([\w.-]+)\1\s*\)/gi, 'url(#board-$2)')
+      else attr.value = attr.value.replace(/url\(\s*(['"]?)#([^\s'"()\\]+)\1\s*\)/gi, 'url(#board-$2)')
     }
   }
   const clean = DOMPurify.sanitize(new XMLSerializer().serializeToString(input), {
     USE_PROFILES: { svg: true, svgFilters: true },
+    ADD_TAGS: ['use'],
     FORBID_TAGS: ['foreignObject', 'image', 'style', 'a', 'animate', 'animateMotion', 'animateTransform', 'set'],
     FORBID_ATTR: ['style'],
   })
   const doc = new DOMParser().parseFromString(clean, 'image/svg+xml')
   const root = doc.documentElement
   if (doc.querySelector('parsererror') || root.localName !== 'svg') throw new Error('Return a complete SVG drawing with a viewBox.')
-  const box = (root.getAttribute('viewBox') ?? '').trim().split(/[\s,]+/).map(Number)
-  if (box.length !== 4 || !box.every(Number.isFinite) || box[2] <= 0 || box[3] <= 0 || box.some(n => Math.abs(n) > 100000)) throw new Error('The SVG needs a finite, positive viewBox.')
+  const coordinates = (root.getAttribute('viewBox') ?? '').split(/[\s,]+/)
+  const box = coordinates.map(Number)
+  if (box.length !== 4 || !coordinates.every(value => /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(value)) || !box.every(Number.isFinite) || box[2] <= 0 || box[3] <= 0 || box.some(n => Math.abs(n) > 100000)) throw new Error('The SVG needs a finite, positive viewBox.')
   for (const element of [root, ...Array.from(root.querySelectorAll('*'))]) {
     for (const attr of Array.from(element.attributes)) {
       // Resource references may only target definitions inside this drawing.
-      if (attr.value.includes('\\') || (['href', 'xlink:href'].includes(attr.name) && !/^#[\w.-]+$/.test(attr.value)) ||
-          (/url\s*\(/i.test(attr.value) && !/^url\(\s*['"]?#[\w.-]+['"]?\s*\)$/i.test(attr.value))) element.removeAttributeNode(attr)
+      if (attr.value.includes('\\') || (['href', 'xlink:href'].includes(attr.name) && !/^#[^\s'"()\\]+$/.test(attr.value)) ||
+          (/url\s*\(/i.test(attr.value) && !/^url\(\s*(['"]?)#[^\s'"()\\]+\1\s*\)$/i.test(attr.value))) element.removeAttributeNode(attr)
     }
   }
   const available = new Set(Array.from(root.querySelectorAll('[id]')).map(element => element.id))
   for (const element of [root, ...Array.from(root.querySelectorAll('*'))]) {
     for (const attr of Array.from(element.attributes)) {
-      const reference = ['href', 'xlink:href'].includes(attr.name) ? attr.value.slice(1) : attr.value.match(/^url\(#([\w.-]+)\)$/)?.[1]
+      const reference = ['href', 'xlink:href'].includes(attr.name) ? attr.value.slice(1) : attr.value.match(/^url\(#([^\s'"()\\]+)\)$/)?.[1]
       if (reference && !available.has(reference)) throw new Error(`The drawing references a missing SVG definition: ${reference.replace(/^board-/, '')}.`)
     }
   }

@@ -40,11 +40,22 @@
       "python3 ci/check_verdict.py"
     ]
   },
-  "unit_script": "vitest run --maxWorkers=4 --coverage --reporter=default --reporter=json --outputFile=test-results/unit.json && node scripts/check-test-results.mjs",
+  "npm_scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && vite build --config vite.server.config.ts",
+    "start": "node dist-server/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --maxWorkers=4",
+    "test:e2e": "playwright test",
+    "test:production": "node scripts/check-production.mjs",
+    "test:strength": "node scripts/check-test-strength.mjs && python3 ../ci/check_mutations.py test-results/mutations.json .",
+    "test:ci": "vitest run --maxWorkers=4 --coverage --reporter=default --reporter=json --outputFile=test-results/unit.json && node scripts/check-test-results.mjs"
+  },
+  "test_floors": { "tests": 270, "files": 21 },
   "coverage_floors": {
-    "lines": 75,
-    "statements": 68,
-    "functions": 69,
-    "branches": 64
+    "lines": 85,
+    "statements": 80,
+    "functions": 79,
+    "branches": 76
   }
 }

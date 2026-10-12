@@ -26,7 +26,7 @@ jobs:
       - run: .ci-tools/actionlint -color
   core:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
@@ -50,6 +50,7 @@ jobs:
           path: |
             frontend/test-results/unit.json
             frontend/coverage/coverage-summary.json
+            frontend/test-results/mutations.json
           retention-days: 7
   browser:
     runs-on: ubuntu-latest

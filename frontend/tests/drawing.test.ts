@@ -8,6 +8,7 @@ it.each([
   'M0 0 Q10 20 30 0 T60 0', 'M1e2 -2e1 H300 V40', 'M0 0 A20 20 0 0 1 40 40',
 ])('accepts general path geometry %s', d => expect(validPath(d)).toBe(true))
 it.each(['<script>alert(1)</script>', 'M0 0 L20', 'L0 0', 'MNaN 0', 'M1e999 0', 'M0 0 Z20 20', 'M0 0 A20 20 0 2 1 40 40', 'M0 0 url(https://test)', 'M0 0 X2 2'])('rejects malformed or executable geometry %s', d => expect(validPath(d)).toBe(false))
+it.each([[-20, 20], [20, -20], [-20, -20]])('rejects each independent negative arc radius (%s, %s)', (rx, ry) => expect(validPath(`M0 0 A${rx} ${ry} 0 0 1 40 40`)).toBe(false))
 it.each([
   ['sin(pi/2)', 1], ['cos(0)', 1], ['abs(-3)', 3], ['sqrt(9)', 3], ['ln(e)', 1], ['exp(0)', 1], ['-2^2', -4], ['2^-2', 0.25], ['2*x + 1', 7], ['x**2', 9], ['-x**2', -9],
 ] as const)('computes %s without model-supplied samples', (source, result) => expect(calculate(source, 3)).toBeCloseTo(result))

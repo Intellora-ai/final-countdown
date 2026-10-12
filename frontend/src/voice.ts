@@ -54,7 +54,7 @@ export function stopSpeaking() {
 }
 export function speak(text: string, onDone?: () => void, onError?: () => void) {
   stopSpeaking()
-  if (!text.trim() || !window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') return false
+  if (!text.trim()) return false
   let active = true
   try {
     const utterance = new SpeechSynthesisUtterance(text)

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest'
-import { speak, startListening, stopSpeaking, type SpeechRecognitionLike } from '../src/voice'
+import { recognitionAvailable, speak, startListening, stopSpeaking, type SpeechRecognitionLike } from '../src/voice'
 
 afterEach(() => { stopSpeaking(); vi.unstubAllGlobals() })
 
@@ -91,4 +91,112 @@ it('returns false when speech cannot start, including empty input', () => {
   expect(speak('   ')).toBe(false)
   synthesis.speak.mockImplementation(() => { throw new Error('Audio device unavailable') })
   expect(speak('Answer')).toBe(false)
+})
+
+it('ignores empty and interim results, then delivers the full finalized transcript without language corruption', () => {
+  const { recognition, text, done } = microphone()
+  const interim = Object.assign([{ transcript: 'unfinished' }], { isFinal: false })
+  const blank = Object.assign([{ transcript: '   ' }], { isFinal: true })
+  recognition.onresult!({ results: [interim, blank] })
+  expect(text).not.toHaveBeenCalled()
+  const finalized = [
+    Object.assign([{ transcript: 'क्या होता है?' }], { isFinal: true }),
+    Object.assign([{ transcript: 'Explain 3.14 and café.' }], { isFinal: true }),
+    interim,
+  ]
+  recognition.onresult!({ results: finalized })
+  recognition.onend!()
+  expect(text).toHaveBeenCalledExactlyOnceWith('क्या होता है? Explain 3.14 and café.')
+  expect(done).toHaveBeenCalledOnce()
+})
+it('stops a failed microphone before notifying the interface and never accepts later text', () => {
+  const { recognition, text, done, error } = microphone()
+  const result = recognition.onresult!, end = recognition.onend!
+  error.mockImplementation(() => expect(recognition.stop).toHaveBeenCalledOnce())
+  recognition.onerror!()
+  result({ results: [[{ transcript: 'Late speech after denial' }]] }); end()
+  expect(error).toHaveBeenCalledOnce()
+  expect(text).not.toHaveBeenCalled()
+  expect(done).not.toHaveBeenCalled()
+})
+it('uses the browser fallback recognizer when the standard API is unavailable', () => {
+  vi.stubGlobal('SpeechRecognition', undefined)
+  const text = vi.fn(), done = vi.fn(), error = vi.fn()
+  const fallbackRecognition = vi.fn(function (this: SpeechRecognitionLike) {
+    Object.assign(this, { lang: '', interimResults: false, continuous: false, onresult: null, onerror: null, onend: null, start: vi.fn(), stop: vi.fn() })
+  })
+  vi.stubGlobal('webkitSpeechRecognition', fallbackRecognition)
+  expect(recognitionAvailable()).toBe(true)
+  const stopFallback = startListening(text, done, error)
+  const active = fallbackRecognition.mock.instances[0] as SpeechRecognitionLike
+  active.onresult!({ results: [[{ transcript: 'A fallback browser question' }]] })
+  active.onend!()
+  expect(text).toHaveBeenCalledExactlyOnceWith('A fallback browser question')
+  expect(done).toHaveBeenCalledOnce()
+  expect(error).not.toHaveBeenCalled()
+  stopFallback()
+})
+it('reports unavailable recognition once without claiming microphone support', () => {
+  vi.stubGlobal('SpeechRecognition', undefined)
+  vi.stubGlobal('webkitSpeechRecognition', undefined)
+  expect(recognitionAvailable()).toBe(false)
+  const text = vi.fn(), done = vi.fn(), error = vi.fn()
+  const stop = startListening(text, done, error)
+  stop(); stop()
+  expect(error).toHaveBeenCalledOnce()
+  expect(text).not.toHaveBeenCalled()
+  expect(done).not.toHaveBeenCalled()
+})
+it('reports playback errors once without treating them as completed answers', () => {
+  const synthesis = speaker(), done = vi.fn(), error = vi.fn()
+  expect(speak('A spoken answer.', done, error)).toBe(true)
+  const utterance = synthesis.speak.mock.calls[0][0]
+  const failed = utterance.onerror, ended = utterance.onend
+  failed(); ended(); failed()
+  expect(error).toHaveBeenCalledOnce()
+  expect(done).not.toHaveBeenCalled()
+  expect(utterance.onend).toBeNull()
+  expect(utterance.onerror).toBeNull()
+})
+it('returns false when the browser has no speech engine and never throws on unavailable cancellation', () => {
+  vi.stubGlobal('speechSynthesis', undefined)
+  vi.stubGlobal('SpeechSynthesisUtterance', undefined)
+  expect(speak('Please speak.')).toBe(false)
+  expect(() => stopSpeaking()).not.toThrow()
+  const synthesis = speaker()
+  synthesis.cancel.mockImplementation(() => { throw new Error('Audio device disconnected') })
+  expect(() => stopSpeaking()).not.toThrow()
+})
+
+it('asks the browser to finish one spoken turn on a pause instead of retaining a continuous microphone stream', () => {
+  const { recognition } = microphone()
+  expect(recognition.continuous).toBe(false)
+  expect(recognition.interimResults).toBe(false)
+  expect(recognition.start).toHaveBeenCalledOnce()
+})
+
+it.each([
+  [true, false],
+  [false, true],
+  [false, false],
+])('declines playback without throwing when speech engine=%s and utterance API=%s', (enginePresent, utterancePresent) => {
+  const synthesis = speaker()
+  if (!enginePresent) vi.stubGlobal('speechSynthesis', undefined)
+  if (!utterancePresent) vi.stubGlobal('SpeechSynthesisUtterance', undefined)
+  expect(speak('A readable answer.')).toBe(false)
+  expect(synthesis.speak).not.toHaveBeenCalled()
+})
+
+it.each([
+  ['fr-CA', 'fr-CA'],
+  ['hi-IN', 'hi-IN'],
+  ['zh-Hant-TW', 'zh-Hant-TW'],
+  ['', 'en-US'],
+])('uses browser locale %s for both recognition and playback, falling back only when empty', (locale, expected) => {
+  vi.stubGlobal('navigator', { language: locale })
+  const { recognition } = microphone()
+  const synthesis = speaker()
+  expect(speak('A multilingual teaching reply.')).toBe(true)
+  expect(recognition.lang).toBe(expected)
+  expect(synthesis.speak.mock.calls[0][0].lang).toBe(expected)
 })

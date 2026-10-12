@@ -7,7 +7,7 @@ export function Diagram({ block }: { block: DiagramBlock }) {
   const arrow = useId().replace(/:/g, '')
   const [selected, setSelected] = useState<string | null>(null)
   const [fontReady, setFontReady] = useState(false)
-  useEffect(() => { let active = true; void document.fonts?.ready.then(() => { if (active) setFontReady(true) }); return () => { active = false } }, [])
+  useEffect(() => { void document.fonts?.ready.then(() => setFontReady(true)) }, [])
   const drawing = useMemo(() => diagramLayout(block), [block, fontReady])
   return <>
     <div className="diagram-scroll" tabIndex={0} aria-label={`Pan ${block.title}`}><svg viewBox={`0 0 ${drawing.width} ${drawing.height}`} style={{ width: `${drawing.width}px` }} role="img" aria-label={block.title}>

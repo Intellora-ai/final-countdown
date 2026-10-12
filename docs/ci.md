@@ -27,8 +27,8 @@ Dependabot groups React, React DOM and both type packages into one PR so
 coupled major upgrades are validated together. Node type major upgrades are
 held for an intentional runtime upgrade; the deployed runtime is Node 24.
 
-The measured unit baseline is about 75.98% lines, 68.30% statements, 69.23%
-functions and 64.43% branches, including entry points. Floors are 75/68/69/64;
+The measured unit baseline is 85.46% lines, 80.35% statements, 79.92%
+functions and 77.46% branches, including entry points. Floors are 85/80/79/76;
 these prevent regression, not certify high or complete coverage. Production
 server tests run subprocesses and browser checks run Chromium, so their executed
 lines are not counted in that unit percentage. They remain separate gates.
@@ -37,10 +37,16 @@ checker compares coverage evidence with discovered src/server files and compares
 test evidence with discovered test files. Declaration-only `.d.ts` files are
 not executable scope.
 
-147 tests and 16 files are the current minimum regression floor, not a target
+270 tests and 21 files are the current minimum regression floor, not a target
 for inflated case counts. Generated cases remain loops within the actual test
-count. The strength check deliberately breaks retrieval and excerpt selection
-in an isolated copy and requires the corresponding assertions to fail.
+count. The strength check generates 200 type-valid source mutations across voice,
+visuals, memory, uploads and server code using the existing TypeScript parser.
+It runs isolated copies against related behavioral tests and records exact
+source/test/runner hashes, locations and outcomes. Invalid compilation, surviving
+mutations and timeouts are separate from failing-assertion detection. The report
+is retained as a GitHub artifact. An independent checker rejects stale source,
+test or runner hashes, fabricated kills, incorrect bailout counts, survivors and
+timeouts. A report is not proof of perfect correctness.
 Adversarial CI tests sabotage commands, conditions, dependencies, evidence,
 coverage, permissions and scanner output. The external actionlint binary is
 pinned to an official release and SHA256; GitHub actions use immutable commits.
@@ -106,11 +112,12 @@ dependency. MathML also retains sanitization as additional defense. No scanner
 suppression was added. A browser test reload race was corrected by waiting for
 the visible answer and completed turn before testing persisted memory.
 
-Activating ruleset 20990225 via the existing GitHub integration returned HTTP
-403 `Resource not accessible by integration`. The ruleset remains disabled;
-repository administration access must activate it and require `release-gate`
-from GitHub Actions (integration 15368). Workflow installation and passing runs
-must not be confused with enforced merge protection.
+The initial attempt to activate ruleset 20990225 through the GitHub integration
+returned HTTP 403. It has since been activated and requires `release-gate`
+from GitHub Actions (integration 15368), with no bypass actors. Additional legacy
+Bandit, code-quality and 95%-coverage requirements still need an administrator
+to reconcile; this connection cannot update that endpoint. They can block a PR
+even when the release workflow passes. See the current [verification scope](verification-scope.md).
 
 Scanner findings now emit GitHub error annotations with the SARIF source file,
 line and column when provided, rule identifier, diagnostic and the rule's

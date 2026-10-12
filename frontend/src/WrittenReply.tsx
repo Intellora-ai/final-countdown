@@ -15,9 +15,7 @@ export function WrittenReply({ text }: { text: string }) {
   }, [])
   const [fontReady, setFontReady] = useState(false)
   useEffect(() => {
-    let active = true
-    void document.fonts?.ready.then(() => { if (active) setFontReady(true) })
-    return () => { active = false }
+    void document.fonts?.ready.then(() => setFontReady(true))
   }, [])
   const block = useMemo(() => ({
     kind: 'scene' as const, title: 'Written answer', width,

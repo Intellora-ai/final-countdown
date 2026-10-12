@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createServer, type Server } from 'node:http'
 import { api, generateLesson } from '../server/api'
+import { MAX_REQUEST_BYTES } from '../src/lesson'
 
 export const example = { title: 'Energy transfer', explanation: 'Energy moves between stores.', blocks: [{ kind: 'svg', title: 'A falling object', source: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400"><path d="M100 80 L100 300" stroke="#335b4a"/><text x="120" y="100">Potential energy</text><text x="120" y="300">Kinetic energy</text></svg>' }] }
 const config = { url: 'https://model.example.test/v1/chat/completions', model: 'test-model', key: 'test-only-key' }
@@ -15,6 +16,56 @@ async function endpoint(model = {}) {
   return `http://127.0.0.1:${address.port}`
 }
 describe('one teaching path', () => {
+  it.each([{ url: config.url }, { model: config.model }])('does not advertise a usable model with partial configuration', async partial => {
+    const base = await endpoint(partial)
+    expect((await (await fetch(base + '/api/health')).json()).modelConfigured).toBe(false)
+  })
+  it.each([
+    { learner: 'Prefers diagrams' },
+    { recall: 'Earlier evidence' },
+    { attachments: [{ name: 'notes.txt', text: 'Document evidence' }] },
+  ])('preserves individually supplied context without requiring other context fields', async extra => {
+    const send = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ choices: [{ message: { content: '{"explanation":"A reply"}' } }] }))
+    await generateLesson({ question: 'Explain', ...extra }, config, send)
+    const payload = JSON.parse(send.mock.calls[0][1]!.body as string)
+    const content = payload.messages.at(-1).content
+    expect(Array.isArray(content)).toBe(true)
+    const context = JSON.parse(content[0].text)
+    expect(context.learnerMemory).toBe('learner' in extra ? extra.learner : '')
+    expect(context.earlierRelevantNotes).toBe('recall' in extra ? extra.recall : '')
+    expect(context.documents).toEqual('attachments' in extra ? [{ name: 'notes.txt', excerpt: 'Document evidence' }] : [])
+  })
+  it('health checks do not replace missing routes or accept unsupported methods', async () => {
+    const base = await endpoint(config)
+    for (const [path, method] of [['/api/missing', 'GET'], ['/api/missing', 'HEAD'], ['/api/health', 'POST'], ['/api/health', 'OPTIONS']]) {
+      expect((await fetch(base + path, { method })).status).toBe(404)
+    }
+  })
+  it('accepts body-free HEAD health probes as well as GET probes', async () => {
+    const base = await endpoint()
+    const response = await fetch(base + '/api/health', { method: 'HEAD' })
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('')
+  })
+  it('classifies malformed provider envelopes as invalid output, not a connection outage', async () => {
+    for (const body of ['{', 'null', '[]', '{"choices":{}}', '{"choices":[{"message":{"content":42}}]}']) {
+      const send = async () => new Response(body)
+      await expect(generateLesson({ question: 'Explain' }, config, send as typeof fetch)).rejects.toThrow('MODEL_OUTPUT_INVALID')
+    }
+  })
+  it('stops reading an oversized provider response instead of exhausting server memory', async () => {
+    let cancelled = false
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array(MAX_REQUEST_BYTES))
+        controller.enqueue(new Uint8Array(1))
+      },
+      cancel() { cancelled = true },
+    })
+    const send = async () => new Response(stream)
+    await expect(generateLesson({ question: 'Draw' }, config, send as typeof fetch)).rejects.toThrow('MODEL_OUTPUT_TOO_LARGE')
+    expect(cancelled).toBe(true)
+  })
   it('offers only universal drawing blocks to replacement models', async () => {
     const send = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ choices: [{ message: { content: JSON.stringify(example) } }] }))
     await generateLesson({ question: 'Draw connections' }, { ...config, model: 'replacement-model' }, send)
@@ -100,6 +151,14 @@ describe('one teaching path', () => {
   it('reports provider rejection without exposing its response or credentials', async () => {
     const send = vi.fn<typeof fetch>().mockResolvedValue(new Response('secret upstream error', { status: 429 }))
     await expect(generateLesson({ question: 'Energy' }, config, send)).rejects.toThrow('MODEL_HTTP_429')
+  })
+  it('distinguishes a missing configured model from invalid output and quota errors', async () => {
+    const base = await endpoint(config)
+    const request = fetch
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('private provider details', { status: 404 })))
+    const response = await request(base + '/api/lesson', { method: 'POST', body: '{"question":"Explain"}' })
+    expect(response.status).toBe(502)
+    expect((await response.json()).error).toContain('endpoint')
   })
   it('does not send a key to an insecure remote endpoint', async () => {
     const send = vi.fn<typeof fetch>()

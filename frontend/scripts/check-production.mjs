@@ -45,6 +45,11 @@ async function stop() {
 }
 try {
   await start()
+  const health = await fetch(base + '/api/health')
+  assert.equal(health.status, 200, 'Deployment health probes must not require browser credentials.')
+  assert.deepEqual(await health.json(), { ok: true })
+  assert.equal((await fetch(base + '/api/health', { method: 'HEAD' })).status, 200)
+  assert.equal((await fetch(base + '/api/health', { method: 'HEAD', headers: { Authorization: authorization } })).status, 200)
   assert.equal((await fetch(base)).status, 401)
   assert.equal((await fetch(base + '/api/lesson', { method: 'POST', body: '{}' })).status, 401)
   assert.equal(calls, 0)

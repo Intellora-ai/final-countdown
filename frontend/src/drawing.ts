@@ -8,7 +8,6 @@ export function validPath(source: string) {
   let index = 0
   while (index < tokens.length) {
     const command = tokens[index++].toUpperCase()
-    if (!(command in arity)) return false
     const numbers: number[] = []
     while (index < tokens.length && !/^[a-z]$/i.test(tokens[index])) numbers.push(Number(tokens[index++]))
     const size = arity[command]

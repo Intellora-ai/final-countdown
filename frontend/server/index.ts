@@ -20,7 +20,11 @@ const server = createServer({ maxHeaderSize: 16384 }, async (req, res) => {
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(self)')
   if (production) res.setHeader('Strict-Transport-Security', 'max-age=31536000')
   res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
-  if (password && !authenticated(req.headers.authorization, password)) {
+  const authorized = !password || authenticated(req.headers.authorization, password)
+  if ((req.url ?? '').split('?')[0] === '/api/health' && (req.method === 'GET' || req.method === 'HEAD') && !authorized) {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end(req.method === 'HEAD' ? undefined : JSON.stringify({ ok: true })); return
+  }
+  if (!authorized) {
     res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Canvas", charset="UTF-8"', 'Cache-Control': 'no-store' }).end('Canvas access required.'); return
   }
   try {

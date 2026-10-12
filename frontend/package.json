@@ -14,7 +14,7 @@
     "test": "vitest run --maxWorkers=4",
     "test:e2e": "playwright test",
     "test:production": "node scripts/check-production.mjs",
-    "test:strength": "node scripts/check-test-strength.mjs",
+    "test:strength": "node scripts/check-test-strength.mjs && python3 ../ci/check_mutations.py test-results/mutations.json .",
     "test:ci": "vitest run --maxWorkers=4 --coverage --reporter=default --reporter=json --outputFile=test-results/unit.json && node scripts/check-test-results.mjs"
   },
   "dependencies": {

@@ -8,7 +8,7 @@ export function readLearner() {
   try { return localStorage.getItem(learnerKey) ?? '' } catch { return '' }
 }
 export function tokens(text: string) {
-  return new Set(text.toLocaleLowerCase().match(/[\p{L}\p{N}]{2,}/gu) ?? [])
+  return new Set(text.normalize('NFKC').toLowerCase().match(/[\p{L}\p{N}][\p{L}\p{M}\p{N}]*/gu) ?? [])
 }
 export function retrieve(entries: { id: string; question: string; lesson: Lesson }[], question: string, exclude: Set<string>) {
   const indexed = entries.filter(e => !exclude.has(e.id)).map(e => ({ e, words: tokens(e.question + ' ' + e.lesson.explanation) }))

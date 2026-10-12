@@ -49,13 +49,13 @@ export function Canvas() {
       const backup = z.object({ learner: z.string().max(2000), entries: historySchema }).parse(JSON.parse(await file.text()))
       endVoice(); cancelRequest()
       localStorage.setItem(storageKey, JSON.stringify(backup.entries)); localStorage.setItem(learnerKey, backup.learner)
-      setEntries(backup.entries); setLearner(backup.learner); setActive(backup.entries.at(-1)?.id ?? null); setError('')
+      setEntries(backup.entries); setLearner(backup.learner); setActive(backup.entries.at(-1)?.id ?? null); setFollowUp(backup.entries.length > 0); setError('')
     } catch { setError('Could not restore the learning backup. Use an exported Blackboard JSON file and check available browser storage.') }
   }
   async function addFiles(files: FileList | null) {
     if (!files) return
     if (attachments.length + files.length > 3) { setError('Attach up to three files at once.'); return }
-    setReading(true); setError('')
+    endVoice(); setReading(true); setError('')
     try { const results = await Promise.all([...files].map(readAttachment)); setAttachments(current => [...current, ...results]) }
     catch (err) { setError(err instanceof Error ? err.message : 'The file could not be read.') }
     finally { setReading(false) }
@@ -126,7 +126,7 @@ export function Canvas() {
       return
     }
     if (spoken === undefined) endVoice(); else stopAudio()
-    cancelRequest(); setBusy(true); setError('')
+    cancelRequest(); setBusy(true); setError(''); setVoiceError('')
     const controller = new AbortController(); requestRef.current = controller
     const timer = window.setTimeout(() => {
       if (requestRef.current !== controller) return
@@ -221,7 +221,7 @@ export function Canvas() {
           {attachments.length > 0 && <p>Relevant excerpts are sent with your question. Photos need a vision-capable model.</p>}
         </div>
         <div className="input-row"><textarea ref={inputRef} aria-label="Your question" placeholder={entry ? 'Ask a follow-up, or try answering…' : 'What would you like to learn?'} value={question} maxLength={1000} onChange={e => setQuestion(e.target.value)} rows={2} /><div className="composer-actions">
-          {recognitionAvailable() && <button type="button" onClick={() => voiceOn ? (endVoice(), cancelRequest()) : listen()}>{voiceOn ? 'End voice' : 'Start voice'}</button>}
+          {recognitionAvailable() && <button type="button" disabled={reading && !voiceOn} onClick={() => voiceOn ? (endVoice(), cancelRequest()) : listen()}>{voiceOn ? 'End voice' : 'Start voice'}</button>}
           {voiceOn && (speaking || busy) && <button type="button" onClick={listen}>Interrupt</button>}
           {busy && !voiceOn ? <button type="button" onClick={cancelRequest}>Stop answer</button> : <button type="submit" disabled={busy || reading || !question.trim()}>Send</button>}
         </div></div>

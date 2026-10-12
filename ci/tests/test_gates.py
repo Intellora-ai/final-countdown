@@ -34,6 +34,21 @@ class GateAttacks(unittest.TestCase):
     def rejects(self):
         self.path.write_text(yaml.safe_dump(self.data, sort_keys=False))
         with self.assertRaises(ValueError): workflow.check(self.root)
+    def test_npm_gate_scripts_cannot_be_replaced_with_fake_passes(self):
+        path = self.root / 'frontend/package.json'
+        original = json.loads(path.read_text())
+        for name in original['scripts']:
+            with self.subTest(script=name):
+                package = copy.deepcopy(original)
+                package['scripts'][name] = 'echo passed'
+                path.write_text(json.dumps(package))
+                self.rejects()
+    def test_hidden_npm_hooks_cannot_rewrite_tests_before_verification(self):
+        path = self.root / 'frontend/package.json'
+        package = json.loads(path.read_text())
+        package['scripts']['pretest:strength'] = 'echo rewrite'
+        path.write_text(json.dumps(package))
+        self.rejects()
     def test_real_workflow_matches_contract(self):
         self.assertTrue(workflow.check(self.root))
     def test_competing_workflow_cannot_hide_under_another_yaml_extension(self):
@@ -133,10 +148,12 @@ class EvidenceAttacks(unittest.TestCase):
         (self.frontend / 'server').mkdir()
         (self.root / 'ci').mkdir()
         shutil.copy(ROOT / 'ci/release-gates.json', self.root / 'ci/release-gates.json')
-        self.report = {'success': True, 'numTotalTests': 147, 'numPassedTests': 147, 'numFailedTests': 0, 'numPendingTests': 0, 'numTodoTests': 0, 'testResults': []}
-        for i in range(16):
+        floors = json.loads((ROOT / 'ci/release-gates.json').read_text())['test_floors']
+        self.report = {'success': True, 'numTotalTests': floors['tests'], 'numPassedTests': floors['tests'], 'numFailedTests': 0, 'numPendingTests': 0, 'numTodoTests': 0, 'testResults': []}
+        per_file, extra = divmod(floors['tests'], floors['files'])
+        for i in range(floors['files']):
             path = self.frontend / 'tests' / f'generated{i}.test.ts'; path.write_text('')
-            self.report['testResults'].append({'name': str(path), 'assertionResults': [{'status': 'passed'} for _ in range(9 + (i < 3))]})
+            self.report['testResults'].append({'name': str(path), 'assertionResults': [{'status': 'passed'} for _ in range(per_file + (i < extra))]})
         source = self.frontend / 'src' / 'example.ts'; source.write_text('')
         self.coverage = {'total': {metric: {'pct': 100} for metric in ['lines', 'branches', 'statements', 'functions']}, str(source): {}}
     def run_checker(self):
@@ -145,6 +162,11 @@ class EvidenceAttacks(unittest.TestCase):
         (self.frontend / 'coverage/coverage-summary.json').write_text(json.dumps(self.coverage))
         return subprocess.run(['node', str(ROOT / 'frontend/scripts/check-test-results.mjs')], cwd=self.frontend, capture_output=True, timeout=10)
     def test_valid_evidence(self): self.assertEqual(self.run_checker().returncode, 0)
+    def test_test_deletion_cannot_hide_under_a_consistent_success_report(self):
+        self.report['testResults'][0]['assertionResults'].pop()
+        self.report['numTotalTests'] -= 1
+        self.report['numPassedTests'] -= 1
+        self.assertNotEqual(self.run_checker().returncode, 0)
     def test_forged_success_summary_with_skipped_assertion(self):
         self.report['testResults'][0]['assertionResults'][0]['status'] = 'skipped'
         self.assertNotEqual(self.run_checker().returncode, 0)

@@ -18,8 +18,34 @@ describe('general SVG artwork', () => {
     expect(svg).not.toMatch(/script|foreignObject|<image|<style|onclick|outside\.test|<animate/)
     expect(svg).toContain('<rect')
   })
+  it.each(['paint:blue', '光', 'café'])('keeps local SVG definitions usable for legal ID %s', id => {
+    const svg = prepareSvg(wrap(`<defs><linearGradient id="${id}"><stop offset="0" stop-color="#ff0000"/></linearGradient><symbol id="${id}-shape"><circle r="20"/></symbol></defs><rect width="100" height="100" fill="url(#${id})"/><use href="#${id}-shape"/>`))
+    const doc = new DOMParser().parseFromString(svg, 'image/svg+xml')
+    const definition = doc.querySelector('linearGradient')!.id
+    expect(definition).toBeTruthy()
+    expect(doc.querySelector('rect')!.getAttribute('fill')).toBe(`url(#${definition})`)
+    expect(doc.querySelector('use')!.getAttribute('href')).toBe(`#${doc.querySelector('symbol')!.id}`)
+  })
+  it.each(['https://outside.test/x.svg#shape', '//outside.test/x.svg#shape', 'data:image/svg+xml;base64,PHN2Zz4=', 'javascript:alert(1)'])('does not retain outside or active reusable-shape resource %s', href => {
+    const svg = prepareSvg(wrap(`<use href="${href}"/><feImage href="${href}"/><rect fill="url(${href})"/>`))
+    const doc = new DOMParser().parseFromString(svg, 'image/svg+xml')
+    expect(Array.from(doc.querySelectorAll('*')).some(element => element.hasAttribute('href'))).toBe(false)
+    expect(doc.querySelector('rect')!.hasAttribute('fill')).toBe(false)
+  })
   it.each(['<div>not SVG</div>', '<svg/>', '<svg viewBox="0 0 0 40"/>', '<svg viewBox="0 0 Infinity 40"/>'])('rejects invalid artwork: %s', source => {
     expect(() => prepareSvg(source)).toThrow()
+  })
+  it.each(['div', 'html'])('requires an SVG document root instead of unwrapping a nested SVG inside %s', wrapper => {
+    expect(() => prepareSvg(`<${wrapper}>${wrap('<rect width="100" height="100"/>')}</${wrapper}>`)).toThrow(/complete SVG/)
+  })
+  it.each(['0x100', '0b10', '0o200'])('rejects JavaScript-only number syntax %s in SVG coordinates', width => {
+    expect(() => prepareSvg(`<svg viewBox="0 0 ${width} 200"><rect width="100" height="100"/></svg>`)).toThrow(/viewBox/)
+  })
+  it.each([' 0 0 600 400 ', '\t0 0 600 400\n', ' -1e1, +.5, 6e2, 400. '])('accepts valid SVG coordinate formatting %s', viewBox => {
+    const svg = prepareSvg(`<svg viewBox="${viewBox}"><rect width="100" height="100"/></svg>`)
+    const doc = new DOMParser().parseFromString(svg, 'image/svg+xml')
+    expect(doc.documentElement.getAttribute('width')).toBe('600')
+    expect(doc.documentElement.getAttribute('height')).toBe('400')
   })
 })
 

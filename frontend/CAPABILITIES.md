@@ -8,12 +8,13 @@
 - Locally measured handwritten text instead of estimated character widths.
 - Zoom, scroll/pan, fit, and font-embedded SVG download.
 - Full-board revisions with previous versions retained in browser-local lessons.
-- Optional plain replies, diagrams, steps, comparisons, charts, and practice checks.
+- Model-generated text with optional general SVG boards; older saved diagrams,
+  steps, comparisons and charts remain readable.
 - Conversation ancestry, bounded recent memory, cancellation, timeout, and preserved drafts.
 - Browser microphone and speech synthesis, automatic next turns, and explicit interruption.
 - General SVG artwork: arbitrary vector composition with groups/transforms, curves,
   gradients, patterns, clipping, masks, filters, and text; zoom/pan and SVG export.
-- One generation contract with optional scene/layout/equation conveniences.
+- One replaceable generation contract: transcript and optional SVG artwork.
 - Older saved step/comparison/chart lessons remain readable.
 
 ## Not implemented
@@ -82,5 +83,6 @@ PDF, EPUB and arbitrary-extension UTF-8 text are parsed locally. Relevant excerp
 go to the same model endpoint. Photos are resized and sent as image inputs;
 understanding requires a vision-capable provider/model. Files stay in this tab.
 Browser tests exercise PDF worker loading, EPUB reading order, text, image input,
-memory persistence, opt-out and backups in development and production. Live
-provider behavior remains unverified without LESSON_API_KEY in this runtime.
+memory persistence, opt-out and backups in development and production. A live
+Groq text-model check on 12 October 2026 returned a correct worked algebra answer
+and SVG; it does not verify photo understanding, all subjects or model accuracy.

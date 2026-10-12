@@ -20,3 +20,16 @@ it('keeps escaped markup literal instead of reinterpreting it as an executable d
   const text = await extractText('notes.html', new TextEncoder().encode('<p>&lt;script&gt;literal example&lt;/script&gt;</p>'))
   expect(text).toBe('<script>literal example</script>')
 })
+
+it('preserves table cells, definitions and block boundaries instead of inventing joined words or numbers', async () => {
+  const documents = [
+    ['<table><tr><th>Quantity</th><th>Value</th></tr><tr><td>1</td><td>2</td></tr></table>', 'Quantity Value 1 2'],
+    ['<dl><dt>Velocity</dt><dd>Rate of displacement</dd></dl>', 'Velocity Rate of displacement'],
+    ['<section>First section</section><section>Second section</section>', 'First section Second section'],
+    ['<h5>Small heading</h5><h6>Smaller heading</h6>', 'Small heading Smaller heading'],
+    ['Before<p>Middle <em>word</em></p>After', 'Before Middle word After'],
+  ]
+  for (const [markup, expected] of documents) {
+    expect(await extractText('notes.html', new TextEncoder().encode(markup))).toBe(expected)
+  }
+})

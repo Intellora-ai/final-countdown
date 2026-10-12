@@ -8,8 +8,8 @@ Python and GitHub Actions with CodeQL.
 
 | Retained component | Verified behavior | Release scope |
 | --- | --- | --- |
-| frontend | 150 unit tests, 20 browser checks, production/container smoke and deliberate fault detection | Canvas release |
-| ci | 22 adversarial workflow/evidence/verdict/annotation tests and actionlint | Canvas release |
+| frontend | 270 unit tests in 21 files, 20 production browser checks plus 2 development checks, production/container smoke and 200 source mutations | Canvas release |
+| ci | 54 adversarial workflow/evidence/verdict/annotation tests and actionlint | Canvas release |
 
 ## Retired systems
 
@@ -38,12 +38,13 @@ Physical microphone/speaker behavior and real provider teaching quality/quotas
 need live testing. Scanners cannot detect every bug and passing tests do not
 prove every line's behavior correct.
 
-The branch ruleset remains disabled. Updating it through this connection returns
+The branch ruleset is active, requires `release-gate` from GitHub Actions and has
+no bypass actors. Updating it through this connection still returns
 HTTP 403 `Resource not accessible by integration`. Repository administration
-access must activate an up-to-date ruleset requiring GitHub Actions `release-gate`
-with no bypasses. A workflow cannot grant itself administration permission.
-Until then, successful checks do not establish mandatory merge enforcement.
+access must remove the obsolete additional Bandit/code-quality/95%-coverage
+requirements still present in that ruleset. These can block valid PRs despite a
+successful release workflow. A workflow cannot grant itself administration permission.
 
 A permanent gate test first failed when an extra `.yaml` workflow escaped the
 integrity checker. The checker now examines both GitHub-supported YAML extensions;
-all 22 gate tests pass after the fix.
+the current gate suite preserves that regression alongside evidence and command-integrity checks.

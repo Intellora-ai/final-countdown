@@ -8,8 +8,8 @@ import yaml
 def check(root):
     contract = json.loads((root / 'ci/release-gates.json').read_text())
     package = json.loads((root / 'frontend/package.json').read_text())
-    if package.get('scripts', {}).get('test:ci') != contract['unit_script']:
-        raise ValueError('The unit gate npm script was changed or suppressed.')
+    if package.get('scripts') != contract['npm_scripts']:
+        raise ValueError('An npm script was changed, suppressed or given an undeclared hook.')
     path = root / contract['workflow']
     workflow = yaml.load(path.read_text(), Loader=yaml.BaseLoader)
     jobs = workflow.get('jobs', {})

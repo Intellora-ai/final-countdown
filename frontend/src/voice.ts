@@ -50,16 +50,30 @@ let discardSpeech: (() => void) | undefined
 export function stopSpeaking() {
   discardSpeech?.()
   discardSpeech = undefined
-  try { window.speechSynthesis?.cancel() } catch { /* No active audio device. */ }
+  try {
+    const synthesis = window.speechSynthesis
+    synthesis?.cancel()
+    // cancel() may leave the browser paused, blocking the next utterance.
+    if (synthesis?.paused) synthesis.resume()
+  } catch { /* No active audio device. */ }
 }
-export function speak(text: string, onDone?: () => void, onError?: () => void) {
+export function pauseSpeaking(paused: boolean): boolean {
+  try {
+    const synthesis = window.speechSynthesis
+    const method = paused ? 'pause' : 'resume'
+    if (typeof synthesis?.[method] !== 'function') return false
+    synthesis[method]()
+    return true
+  } catch { return false }
+}
+export function speak(text: string, onDone?: () => void, onError?: () => void, onProgress?: (charIndex: number) => void) {
   stopSpeaking()
   if (!text.trim()) return false
   let active = true
   try {
     const utterance = new SpeechSynthesisUtterance(text)
     utterance.lang = navigator.language || 'en-US'
-    const detach = () => { active = false; utterance.onend = utterance.onerror = null }
+    const detach = () => { active = false; utterance.onend = utterance.onerror = utterance.onboundary = null }
     discardSpeech = detach
     const finish = (callback?: () => void) => {
       if (!active) return
@@ -67,6 +81,10 @@ export function speak(text: string, onDone?: () => void, onError?: () => void) {
     }
     utterance.onend = () => finish(onDone)
     utterance.onerror = () => finish(onError)
+    utterance.onboundary = event => {
+      const index = event.charIndex
+      if (active && Number.isInteger(index) && index >= 0 && index < text.length) onProgress?.(index)
+    }
     window.speechSynthesis.speak(utterance)
     return true
   } catch { stopSpeaking(); return false }

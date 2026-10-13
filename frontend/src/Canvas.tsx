@@ -5,7 +5,7 @@ import { learnerKey, readLearner, mergeMemory, retrieve } from './learner'
 import { passages, readAttachment, type Attachment } from './attachments'
 import { WrittenReply } from './WrittenReply'
 import { Visual } from './Visual'
-import { recognitionAvailable, speak, startListening, stopSpeaking } from './voice'
+import { pauseSpeaking, recognitionAvailable, speak, startListening, stopSpeaking } from './voice'
 
 const historySchema = z.array(z.object({ id: z.string(), parentId: z.string().optional(), question: z.string(), lesson: lessonSchema }))
 type Entry = z.infer<typeof historySchema>[number]
@@ -27,6 +27,11 @@ function context(entries: Entry[], entry: Entry | undefined, question: string) {
   if (bytes() > 64000) memory = memory.map(turn => ({ ...turn, lesson: { ...turn.lesson, blocks: [] } }))
   return memory
 }
+function captionAt(text: string, index: number) {
+  const paragraph = text.indexOf('\n', index), word = text.indexOf(' ', index + 90)
+  return text.slice(index, Math.min(paragraph < 0 ? text.length : paragraph, word < 0 ? text.length : word))
+}
+
 export function Canvas() {
   const [entries, setEntries] = useState(readHistory)
   const [learner, setLearner] = useState(readLearner)
@@ -48,6 +53,7 @@ export function Canvas() {
       if (file.size > 20 * 1024 * 1024) throw new Error('Learning backup exceeds 20 MB.')
       const backup = z.object({ learner: z.string().max(2000), entries: historySchema }).parse(JSON.parse(await file.text()))
       endVoice(); cancelRequest()
+      freshBoard.current = undefined
       localStorage.setItem(storageKey, JSON.stringify(backup.entries)); localStorage.setItem(learnerKey, backup.learner)
       setEntries(backup.entries); setLearner(backup.learner); setActive(backup.entries.at(-1)?.id ?? null); setFollowUp(backup.entries.length > 0); setError('')
     } catch { setError('Could not restore the learning backup. Use an exported Blackboard JSON file and check available browser storage.') }
@@ -70,6 +76,12 @@ export function Canvas() {
   const [followUp, setFollowUp] = useState(() => entries.length > 0)
   const [listening, setListening] = useState(false)
   const [speaking, setSpeaking] = useState(false)
+  const [paused, setPaused] = useState(false)
+  const [progress, setProgress] = useState<number>()
+  const [followTeacher, setFollowTeacher] = useState(true)
+  const [boardZoom, setBoardZoom] = useState(1)
+  const boardRef = useRef<HTMLDivElement>(null)
+  const freshBoard = useRef<string>()
   const [voiceError, setVoiceError] = useState('')
   const [voiceOn, setVoiceOn] = useState(false)
   const voiceEnabled = useRef(false)
@@ -80,6 +92,17 @@ export function Canvas() {
   const listenRef = useRef<() => void>(() => {})
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const entry = entries.find(e => e.id === active)
+  const transcript = entry ? [entry.lesson.explanation, entry.lesson.check].filter(Boolean).join('\n') : ''
+  const caption = progress === undefined ? '' : captionAt(transcript, progress)
+
+  useEffect(() => {
+    if (!followTeacher || progress === undefined) return
+    const board = boardRef.current, row = board?.querySelector('[data-active=true]')
+    if (!board || !row) return
+    const viewport = board.getBoundingClientRect(), ink = row.getBoundingClientRect()
+    if (ink.top < viewport.top + 24 || ink.bottom > viewport.bottom - 24)
+      board.scrollBy?.({ top: ink.top - viewport.top - board.clientHeight / 2, behavior: 'auto' })
+  }, [progress, followTeacher])
 
   useEffect(() => {
     const health = new AbortController()
@@ -89,7 +112,7 @@ export function Canvas() {
       .catch(() => { if (!health.signal.aborted) setError('The teaching server is unavailable. Restart the development server.') })
     return () => {
       health.abort(); requestRef.current?.abort(); requestRef.current = null
-      voiceEnabled.current = false; voiceRun.current++
+      voiceRun.current++
       stopListeningRef.current(); stopSpeaking()
     }
   }, [])
@@ -97,10 +120,12 @@ export function Canvas() {
   function stopAudio() {
     voiceRun.current++; stopListeningRef.current(); stopSpeaking()
     setListening(false); setSpeaking(false)
+    setPaused(false); setProgress(undefined)
   }
   function endVoice() { voiceEnabled.current = false; setVoiceOn(false); stopAudio() }
   function cancelRequest() { requestRef.current?.abort(); requestRef.current = null; setBusy(false) }
   function select(id: string | null) {
+    freshBoard.current = undefined
     endVoice(); cancelRequest(); setActive(id); setFollowUp(id !== null)
     setQuestion(''); setError(''); setVoiceError(''); setHistoryOpen(false)
     inputRef.current?.focus()
@@ -109,12 +134,18 @@ export function Canvas() {
   function readAloud(lesson: Lesson) {
     stopAudio(); setVoiceError(''); setSpeaking(true)
     const run = voiceRun.current
-    const started = speak([lesson.explanation, lesson.check].filter(Boolean).join('\n'), () => {
+    const transcript = [lesson.explanation, lesson.check].filter(Boolean).join('\n')
+    setProgress(0)
+    const started = speak(transcript, () => {
       if (run !== voiceRun.current) return
       setSpeaking(false)
+      setProgress(undefined)
       if (voiceEnabled.current) listenRef.current()
     }, () => {
       if (run === voiceRun.current) voiceFailed('Audio playback failed. You can read the answer or try Read aloud again.')
+    }, index => {
+      if (run !== voiceRun.current) return
+      setProgress(index)
     })
     if (!started) voiceFailed('Spoken answers are unavailable in this browser.')
   }
@@ -151,6 +182,7 @@ export function Canvas() {
       const lesson = lessonSchema.parse(result.lesson)
       if (remember && typeof result.lesson.learner === 'string') saveLearner(mergeMemory(learner, result.lesson.learner))
       const next = [...entries, { id: crypto.randomUUID(), parentId: parent?.id, question: value, lesson }]
+      freshBoard.current = next.at(-1)!.id
       setEntries(next); setActive(next.at(-1)!.id); setQuestion(current => current.trim() === value ? '' : current); setFollowUp(true)
       try { localStorage.setItem(storageKey, JSON.stringify(next)); setStorageError('') }
       catch { setStorageError('Browser storage is full or unavailable. This answer will be lost when this tab closes.') }
@@ -174,7 +206,6 @@ export function Canvas() {
       received = true; setListening(false); setQuestion(text); submitRef.current(text)
     }, () => {
       if (run !== voiceRun.current) return
-      setListening(false)
       if (!received) voiceFailed('No speech was received. Start voice to try again.')
     }, () => {
       if (run === voiceRun.current) voiceFailed('Microphone input failed. Check browser microphone permission, or type your question.')
@@ -201,18 +232,28 @@ export function Canvas() {
       </details>
     </aside>
     <main id="canvas">
-      <header><div className="toolbar"><button className="history-toggle" aria-label="Saved lessons" aria-expanded={historyOpen} aria-controls="lesson-history" onClick={() => setHistoryOpen(!historyOpen)}>☰</button><a className="brand" href="#canvas">Blackboard</a></div><div className="toolbar"><span className="connection">{connected === null ? 'Checking connection…' : connected ? 'Model configured' : 'Model not configured'}</span><button className="new-topic" onClick={() => select(null)}>+ New topic</button></div></header>
+      <header><div className="toolbar"><button className="history-toggle" aria-label="Saved lessons" aria-expanded={historyOpen} aria-controls="lesson-history" onClick={() => setHistoryOpen(!historyOpen)}>☰</button><a className="brand" href="#canvas">Blackboard</a></div><div className="toolbar"><span className="connection">{connected === null ? 'Checking connection…' : connected ? 'Model configured' : 'Model not configured'}</span><select aria-label="Board zoom" value={boardZoom} onChange={event => setBoardZoom(Number(event.target.value))}>{[0.75, 1, 1.25, 1.5].map(value => <option key={value} value={value}>{value * 100}%</option>)}</select><button className="new-topic" aria-label="+ New topic" onClick={() => select(null)}>+ New topic</button></div></header>
       {connected === false && <p className="notice" role="status">Teaching isn’t connected yet. Saved lessons still open. The server needs a model endpoint and model name.</p>}
+      <div className="board-stage" ref={boardRef}>
+      <div className="board-content" style={{ zoom: boardZoom }}>
       {entry ? <article key={entry.id}>
         <p className="sr-only">Question: {entry.question}</p>
-        <div className="lesson-heading">{entry.lesson.title && <h1>{entry.lesson.title}</h1>}<button disabled={busy} onClick={() => speaking ? endVoice() : readAloud(entry.lesson)}>{speaking ? 'Stop speaking' : 'Read aloud'}</button></div>
+        <div className="lesson-heading">{entry.lesson.title && <h1>{entry.lesson.title}</h1>}</div>
         <section className="answer-board" aria-label="Answer canvas">
           <p className="sr-only">{entry.lesson.explanation}</p>
-          <WrittenReply text={entry.lesson.explanation} />
+          <WrittenReply text={entry.lesson.explanation} progress={progress} reveal={freshBoard.current === entry.id} />
           {entry.lesson.blocks.length > 0 && <div className="visuals">{entry.lesson.blocks.map((block, i) => <Visual block={block} key={i} />)}</div>}
         </section>
-        {entry.lesson.check && <section className="check"><span>Your turn</span><p>{entry.lesson.check}</p><button onClick={() => { setFollowUp(true); inputRef.current?.focus() }}>Try it below ↓</button></section>}
+        {entry.lesson.check && <section className="check"><span>Your turn</span><p data-active={progress !== undefined && progress >= entry.lesson.explanation.length + 1 ? 'true' : undefined}>{entry.lesson.check}</p><button onClick={() => { setFollowUp(true); inputRef.current?.focus() }}>Try it below ↓</button></section>}
       </article> : <section className="blank-board" aria-label="Blank canvas" />}
+      </div>
+      </div>
+      {entry && <div className="teaching-controls">
+        <button disabled={busy} onClick={() => speaking ? endVoice() : readAloud(entry.lesson)}>{speaking ? 'Stop speaking' : 'Read aloud'}</button>
+        <button aria-pressed={followTeacher} onClick={() => setFollowTeacher(!followTeacher)}>Follow teacher</button>
+        {speaking && <button onClick={() => { if (pauseSpeaking(!paused)) setPaused(!paused); else voiceFailed('Playback controls are unavailable. You can stop reading and try again.') }}>{paused ? 'Resume reading' : 'Pause reading'}</button>}
+      </div>}
+      {speaking && caption && <p className="voice-caption" aria-label="Voice caption" aria-live="off">{caption}</p>}
       <div className="composer"><form onSubmit={event => { event.preventDefault(); void submit() }}>
         {entry && <label className="follow-up"><input type="checkbox" checked={followUp} onChange={e => setFollowUp(e.target.checked)} /> Keep conversation context</label>}
         <div className="file-input"><label>Attach files or photos<input type="file" multiple disabled={reading || busy} aria-label="Attach files or photos" onChange={e => { void addFiles(e.target.files); e.target.value = '' }} /></label>

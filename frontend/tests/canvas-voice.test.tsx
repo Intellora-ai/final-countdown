@@ -7,7 +7,7 @@ import type { SpeechRecognitionLike } from '../src/voice'
 import { learnerKey } from '../src/learner'
 
 const answer = { explanation: 'A natural spoken answer.', blocks: [] }
-let microphones: SpeechRecognitionLike[], utterances: { text: string; onend: (() => void) | null; onerror: (() => void) | null }[]
+let microphones: SpeechRecognitionLike[], utterances: { text: string; onend: (() => void) | null; onerror: (() => void) | null; onboundary: ((event: SpeechSynthesisEvent) => void) | null }[]
 beforeEach(() => {
   localStorage.clear(); microphones = []; utterances = []
   class Recognition {
@@ -15,16 +15,61 @@ beforeEach(() => {
     onresult: SpeechRecognitionLike['onresult'] = null; onerror: SpeechRecognitionLike['onerror'] = null; onend: SpeechRecognitionLike['onend'] = null
     start = vi.fn(); stop = vi.fn(); constructor() { microphones.push(this) }
   }
-  class Utterance { onend = null; onerror = null; constructor(public text: string) {} }
+  class Utterance { onend = null; onerror = null; onboundary = null; constructor(public text: string) {} }
   vi.stubGlobal('SpeechRecognition', Recognition)
   vi.stubGlobal('SpeechSynthesisUtterance', Utterance)
-  vi.stubGlobal('speechSynthesis', { cancel: vi.fn(), speak: (utterance: typeof utterances[number]) => utterances.push(utterance) })
+  vi.stubGlobal('speechSynthesis', { cancel: vi.fn(), pause: vi.fn(), resume: vi.fn(), speak: (utterance: typeof utterances[number]) => utterances.push(utterance) })
 })
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 function transport() {
   const send = vi.fn<typeof fetch>().mockImplementation(async url => Response.json(String(url).endsWith('health') ? { modelConfigured: true } : { lesson: answer }))
   vi.stubGlobal('fetch', send); return send
 }
+it('reads the board with captions, pause/resume and cancellable handwriting progress', async () => {
+  const explanation = 'First, consider the relationship.\nThen compare what changes when the input changes.'
+  localStorage.setItem('visual-canvas/v1', JSON.stringify([{ id: 'spoken-board', question: 'Explain the relationship', lesson: { explanation, blocks: [] } }]))
+  transport(); render(<Canvas />)
+  fireEvent.click(screen.getByRole('button', { name: 'Read aloud' }))
+  expect(screen.getByLabelText('Voice caption').textContent).toContain('First')
+  const progress = utterances[0].onboundary!
+  act(() => progress({ charIndex: explanation.indexOf('Then') } as SpeechSynthesisEvent))
+  expect(screen.getByLabelText('Voice caption').textContent).toContain('Then')
+  expect(screen.getByRole('img', { name: 'Written answer' }).querySelector('[data-active=true]')?.textContent).toContain('Then')
+  act(() => progress({ charIndex: explanation.indexOf('compare') } as SpeechSynthesisEvent))
+  expect(screen.getByLabelText('Voice caption').textContent?.startsWith('compare')).toBe(true)
+  fireEvent.click(screen.getByRole('button', { name: 'Pause reading' }))
+  expect(window.speechSynthesis.pause).toHaveBeenCalledOnce()
+  fireEvent.click(screen.getByRole('button', { name: 'Resume reading' }))
+  expect(window.speechSynthesis.resume).toHaveBeenCalledOnce()
+  fireEvent.click(screen.getByRole('button', { name: 'Stop speaking' }))
+  act(() => progress({ charIndex: 0 } as SpeechSynthesisEvent))
+  expect(screen.queryByLabelText('Voice caption')).toBeNull()
+  expect(screen.getByRole('img', { name: 'Written answer' }).querySelector('[data-active=true]')).toBeNull()
+  expect(screen.getByRole('img', { name: 'Written answer' }).textContent).toContain('Then')
+})
+it('lets the learner leave teacher tracking and handles unavailable pause controls', () => {
+  localStorage.setItem('visual-canvas/v1', JSON.stringify([{ id: 'tracked-board', question: 'Explain', lesson: answer }]))
+  transport(); render(<Canvas />)
+  const board = document.querySelector('.board-stage') as HTMLDivElement
+  const row = document.querySelector('.handwriting-row') as SVGTSpanElement
+  vi.spyOn(board, 'getBoundingClientRect').mockReturnValue({ top: 0, bottom: 200 } as DOMRect)
+  vi.spyOn(row, 'getBoundingClientRect').mockReturnValue({ top: 300, bottom: 340 } as DOMRect)
+  Object.defineProperty(board, 'clientHeight', { value: 200 })
+  const scroll = vi.fn(); Object.defineProperty(board, 'scrollBy', { value: scroll })
+  fireEvent.click(screen.getByRole('button', { name: 'Read aloud' }))
+  expect(scroll).toHaveBeenCalledWith({ top: 200, behavior: 'auto' })
+  scroll.mockClear()
+  fireEvent.click(screen.getByRole('button', { name: 'Follow teacher' }))
+  act(() => utterances[0].onboundary!({ charIndex: 2 } as SpeechSynthesisEvent))
+  expect(scroll).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'Follow teacher' }))
+  expect(scroll).toHaveBeenCalledOnce()
+  vi.stubGlobal('speechSynthesis', { cancel: vi.fn() })
+  fireEvent.click(screen.getByRole('button', { name: 'Pause reading' }))
+  expect(screen.getByRole('alert').textContent).toContain('Playback controls are unavailable')
+  expect(screen.queryByLabelText('Voice caption')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Read aloud' })).toBeTruthy()
+})
 it('runs two spoken turns using the latest answer as follow-up context', async () => {
   const send = transport(); render(<Canvas />)
   fireEvent.click(screen.getByRole('button', { name: 'Start voice' }))
@@ -362,4 +407,44 @@ it.each([
   }
   expect(JSON.parse(localStorage.getItem('visual-canvas/v1')!)[0].lesson.blocks).toEqual(lesson.blocks)
   expect(screen.queryByRole('alert')).toBeNull()
+})
+
+it('tracks a saved check question after the explanation and intervening visuals', () => {
+  const explanation = 'First understand the relationship.'
+  const check = 'What changes when you double the input?'
+  localStorage.setItem('visual-canvas/v1', JSON.stringify([{ id: 'check-board', question: 'Explain', lesson: { explanation, check, blocks: [{ kind: 'svg', title: 'Relationship', source: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><path d="M10 200 L190 20" stroke="blue"/></svg>' }] } }]))
+  transport(); render(<Canvas />)
+  fireEvent.click(screen.getByRole('button', { name: 'Read aloud' }))
+  act(() => utterances[0].onboundary!({ charIndex: explanation.length + 1 } as SpeechSynthesisEvent))
+  expect(document.querySelector('.check [data-active=true]')?.textContent).toBe(check)
+  expect(screen.getByLabelText('Voice caption').textContent).toBe(check)
+  fireEvent.click(screen.getByRole('button', { name: 'Stop speaking' }))
+  expect(document.querySelector('.check [data-active=true]')).toBeNull()
+})
+
+it('restarts completed paused playback in normal reading mode', () => {
+  localStorage.setItem('visual-canvas/v1', JSON.stringify([{ id: 'completed-pause', question: 'Explain', lesson: answer }]))
+  transport(); render(<Canvas />)
+  fireEvent.click(screen.getByRole('button', { name: 'Read aloud' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Pause reading' }))
+  act(() => utterances[0].onend!())
+  expect(screen.queryByLabelText('Voice caption')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Read aloud' }))
+  expect(screen.getByRole('button', { name: 'Pause reading' })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Resume reading' })).toBeNull()
+  expect(utterances).toHaveLength(2)
+})
+
+it('keeps the microphone stopped after its result and end while the answer is pending', () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockImplementation(async url => String(url).endsWith('health') ? Response.json({ modelConfigured: true }) : new Promise<Response>(() => {})))
+  render(<Canvas />)
+  fireEvent.click(screen.getByRole('button', { name: 'Start voice' }))
+  const queuedEnd = microphones[0].onend!
+  act(() => microphones[0].onresult!({ results: [[{ transcript: 'Explain this relationship' }]] }))
+  expect(screen.getByText('Working on your question…')).toBeTruthy()
+  act(() => queuedEnd())
+  expect(screen.queryByText('Listening… pause when you finish.')).toBeNull()
+  expect(screen.getByText('Working on your question…')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'End voice' }))
+  expect(screen.queryByText('Working on your question…')).toBeNull()
 })

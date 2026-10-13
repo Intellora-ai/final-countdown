@@ -288,7 +288,7 @@ it('does not schedule a font-fit frame after a scene has been removed', async ()
 
 it('reflows written replies to the observed viewport while keeping readable bounds and disconnecting the observer', () => {
   let availableWidth = 1200
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => ({ x: 0, y: 0, top: 0, left: 0, right: availableWidth, bottom: 100, width: availableWidth, height: 100, toJSON: () => ({}) }))
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(() => availableWidth)
   let resize!: ResizeObserverCallback
   const observe = vi.fn(), disconnect = vi.fn()
   vi.stubGlobal('ResizeObserver', class {
@@ -304,10 +304,10 @@ it('reflows written replies to the observed viewport while keeping readable boun
     const page = screen.getByRole('img', { name: 'Written answer' })
     expect(observe).toHaveBeenCalledWith(view.container.firstElementChild)
     const initialHeight = Number(page.getAttribute('viewBox')!.split(' ')[3])
-    expect(page.getAttribute('viewBox')!.split(' ')[2]).toBe('800')
+    expect(page.getAttribute('viewBox')!.split(' ')[2]).toBe('1200')
     availableWidth = 100
     act(() => resize([], {} as ResizeObserver))
-    expect(page.getAttribute('viewBox')!.split(' ')[2]).toBe('320')
+    expect(page.getAttribute('viewBox')!.split(' ')[2]).toBe('128')
     expect(Number(page.getAttribute('viewBox')!.split(' ')[3])).toBeGreaterThan(initialHeight)
     availableWidth = 640
     act(() => resize([], {} as ResizeObserver))

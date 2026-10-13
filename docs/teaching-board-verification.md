@@ -33,3 +33,17 @@ Tool provenance and public REA MCP evidence IDs are documented in [the design re
 ## Reviewable screenshots
 
 [Completed handwriting](evidence/teaching-board/writing.png), [computed artwork](evidence/teaching-board/drawing.png), and [phone board](evidence/teaching-board/phone.png) show the captured actual Groq answer rendered by this application. The artwork view is panned to the drawing; the writing view preserves the complete response. These are reconstruction evidence, not Studdy screenshots.
+
+## Remaining-item verification — 14 October
+
+The pushed commit `acfc5d5472eb3e4163c3d141b4ad0cf0051ffebc` completed GitHub run 38468907911. Browser, core, container, integrity and all three CodeQL language jobs passed. Coverage upload failed with HTTP 404; release-gate correctly failed. Downloaded GitHub artifacts independently confirmed 541 passing tests across 29 files, all four 95% floors, 801/801 covered lines and matching per-source Cobertura counts. The independent mutation validator confirmed 200 kills, zero survivors/timeouts, 56 compiler-invalid exclusions and matching current source/test fingerprints. Remote mutation report SHA-256: `a60dc48d4e11b56183bf3897f5cd63d4ae1a51e5ad558cbc5b519e5ab7acd95b`.
+
+Actual Chromium APIs, without fake devices or mocked speech, reported no audio devices, `getUserMedia` NotFoundError, no synthesis voices and synthesis-failed. Real application controls recovered from both failures: no lingering Speaking/Listening status, Read aloud and Start voice became available again. This verifies native error handling, not audible output or a successful real microphone turn on a Mac. Evidence is in `docs/evidence/release-access/native-audio.json` and `native-audio-ui.json`.
+
+The integration received HTTP 403 `Resource not accessible by integration` for reading/patching Code Quality setup and updating the ruleset. Repository role metadata reports admin, but that does not grant the integration Administration write access. The official setup API requires Administration repository permission (write); official coverage documentation lists GitHub Team/Enterprise Cloud availability. The present responses do not independently establish this account's entitlement.
+
+A reviewed payload for the previously approved legacy Bandit/code-quality removals is retained in `docs/evidence/release-access/approved-ruleset-repair.json`. It preserves active enforcement, no bypass actors, mandatory release-gate, PR protection, CodeQL and native 95% coverage. GitHub rejected its application; no rule was changed. The supported setup PATCH (`state=configured`, JavaScript/TypeScript and Python, standard runner, AI findings disabled) was also rejected with 403. No thresholds, fatal upload errors or protections were weakened.
+
+To finish the two external items requires an actual audio-capable Mac/browser environment and a GitHub connection with Administration write access plus eligible/enabled Code Quality. Repeating tests or installing more analysis skills cannot grant either capability.
+
+Official references: https://docs.github.com/en/code-security/how-tos/maintain-quality-code/set-up-code-coverage and https://docs.github.com/en/rest/code-quality/code-quality#update-a-code-quality-setup-configuration .

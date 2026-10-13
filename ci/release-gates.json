@@ -5,14 +5,15 @@
     "core",
     "browser",
     "container",
-    "security"
+    "security",
+    "coverage"
   ],
   "commands": {
     "integrity": [
       "python3 ci/check_workflows.py",
       "python3 -m unittest discover -s ci/tests",
       "python3 ci/install_actionlint.py",
-      ".ci-tools/actionlint -color"
+      ".ci-tools/actionlint -color -ignore '^unknown permission scope \"code-quality\"\\.'"
     ],
     "core": [
       "npm ci",
@@ -36,6 +37,7 @@
     "security": [
       "python3 ci/check_sarif.py codeql-results"
     ],
+    "coverage": [],
     "release-gate": [
       "python3 ci/check_verdict.py"
     ]
@@ -51,11 +53,11 @@
     "test:strength": "node scripts/check-test-strength.mjs && python3 ../ci/check_mutations.py test-results/mutations.json .",
     "test:ci": "vitest run --maxWorkers=4 --coverage --reporter=default --reporter=json --outputFile=test-results/unit.json && node scripts/check-test-results.mjs"
   },
-  "test_floors": { "tests": 270, "files": 21 },
+  "test_floors": { "tests": 467, "files": 28 },
   "coverage_floors": {
-    "lines": 85,
-    "statements": 80,
-    "functions": 79,
-    "branches": 76
+    "lines": 95,
+    "statements": 95,
+    "functions": 95,
+    "branches": 95
   }
 }

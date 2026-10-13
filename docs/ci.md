@@ -6,7 +6,7 @@ its command/dependency contract. Every push and PR runs the checks, without
 path filters that could leave a required check missing. An optional manual run
 is also available. Superseded runs cancel; current runs have bounded timeouts.
 
-Five independent jobs run in parallel:
+Five jobs run in parallel; a sixth publishes the successful core coverage result:
 
 | Gate | Failure it detects |
 | --- | --- |
@@ -15,6 +15,7 @@ Five independent jobs run in parallel:
 | browser | Real Chromium desktop/phone failures in the production app; upload/memory also exercised under Vite. Flaky tests fail rather than retry into green |
 | container | A broken deployable image, root execution, authentication/static/PDF-worker failures and lost quota after restart; runs with read-only filesystem and dropped capabilities |
 | security | CodeQL analysis of Actions, JavaScript/TypeScript and Python across the repository; SARIF warning/error findings fail even when upload succeeds |
+| coverage | Publishes verified Cobertura line evidence to GitHub Code Quality; upload errors or processing timeouts block release |
 
 The `release-gate` job runs even if dependencies fail or skip. It accepts only
 an exact, complete set of successful results. Require this one status context
@@ -27,17 +28,18 @@ Dependabot groups React, React DOM and both type packages into one PR so
 coupled major upgrades are validated together. Node type major upgrades are
 held for an intentional runtime upgrade; the deployed runtime is Node 24.
 
-The measured unit baseline is 85.46% lines, 80.35% statements, 79.92%
-functions and 77.46% branches, including entry points. Floors are 85/80/79/76;
-these prevent regression, not certify high or complete coverage. Production
-server tests run subprocesses and browser checks run Chromium, so their executed
-lines are not counted in that unit percentage. They remain separate gates.
+The measured baseline is 100% lines (681/681), 99.73% statements (1137/1140),
+98.84% functions (256/259) and 97.30% branches (829/852), including entry points.
+All four floors are 95%. These are execution measurements, not a correctness
+certificate. New in-process tests exercise the actual HTTP server and React
+bootstrap inside Vitest. Existing subprocess and Chromium checks remain separate
+evidence and their execution is not added to the unit percentage.
 No executable application files are excluded to improve the number. The
 checker compares coverage evidence with discovered src/server files and compares
 test evidence with discovered test files. Declaration-only `.d.ts` files are
 not executable scope.
 
-270 tests and 21 files are the current minimum regression floor, not a target
+467 tests and 28 files are the current minimum regression floor, not a target
 for inflated case counts. Generated cases remain loops within the actual test
 count. The strength check generates 200 type-valid source mutations across voice,
 visuals, memory, uploads and server code using the existing TypeScript parser.
@@ -53,6 +55,22 @@ pinned to an official release and SHA256; GitHub actions use immutable commits.
 The gate contract, verifier code and tests still need human review: code cannot
 provide an independent proof of its own honesty.
 
+GitHub's native 95% rule evaluates uploaded aggregate line coverage. The official
+publisher uses repository-relative Cobertura paths for the exact PR head. A
+separate job holds only contents/read, pull-requests/read and code-quality/write;
+tested repository code runs with the default read-only token. JSON totals,
+per-file counts, XML source paths and actual XML hit counts must agree before
+publishing. Upload errors remain fatal and the action waits for processing.
+Native publishing needs GitHub Code Quality enabled; artifacts alone do not
+enable the feature. Fork/stale-head uploads may be intentionally skipped by the
+official action; the local 95% gate still applies and native evidence must not
+be claimed for such skips.
+
+The latest published actionlint 1.7.12 does not recognize GitHub's new documented
+code-quality permission. Its only diagnostic exception matches that exact scope;
+the independent workflow checker requires the exact coverage-only grant and
+rejects all other permissions. All remaining lint diagnostics remain fatal.
+
 ## Local reproduction
 
 From the repository root:
@@ -61,7 +79,7 @@ From the repository root:
 python3 ci/check_workflows.py
 python3 -m unittest discover -s ci/tests
 python3 ci/install_actionlint.py  # Linux amd64
-.ci-tools/actionlint -color
+.ci-tools/actionlint -color -ignore '^unknown permission scope "code-quality"\.'
 ```
 
 From frontend:
@@ -115,9 +133,11 @@ the visible answer and completed turn before testing persisted memory.
 The initial attempt to activate ruleset 20990225 through the GitHub integration
 returned HTTP 403. It has since been activated and requires `release-gate`
 from GitHub Actions (integration 15368), with no bypass actors. Additional legacy
-Bandit, code-quality and 95%-coverage requirements still need an administrator
-to reconcile; this connection cannot update that endpoint. They can block a PR
-even when the release workflow passes. See the current [verification scope](verification-scope.md).
+Bandit and code-quality requirements remain in place, and the user's 95% coverage
+requirement is explicitly preserved and now supplied with native coverage
+evidence. This connection cannot edit that administration endpoint. Native
+feature availability must be established by the actual publishing job, rather
+than inferred from a passing local suite. See [verification scope](verification-scope.md).
 
 Scanner findings now emit GitHub error annotations with the SARIF source file,
 line and column when provided, rule identifier, diagnostic and the rule's

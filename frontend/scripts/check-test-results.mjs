@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { execFileSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 const report = JSON.parse(await readFile('test-results/unit.json', 'utf8'))
 const contract = JSON.parse(await readFile('../ci/release-gates.json', 'utf8'))
 assert.equal(report.success, true, 'Test runner did not report success.')
@@ -18,7 +20,7 @@ const { resolve } = await import('node:path')
 const expectedTests = (await readdir('tests', { recursive: true })).filter(file => /\.test\.tsx?$/.test(file)).map(file => resolve('tests', file))
 assert.deepEqual(new Set(report.testResults.map(file => file.name)), new Set(expectedTests), 'A discovered test file was omitted.')
 const summary = JSON.parse(await readFile('coverage/coverage-summary.json', 'utf8'))
-for (const [metric, minimum] of Object.entries(contract.coverage_floors)) assert.ok(summary.total[metric].pct >= minimum, `${metric} coverage regressed below ${minimum}%.`)
 const sources = (await Promise.all(['src', 'server'].map(async dir => (await readdir(dir, { recursive: true })).filter(file => /\.tsx?$/.test(file) && !file.endsWith('.d.ts')).map(file => resolve(dir, file))))).flat()
 assert.deepEqual(new Set(Object.keys(summary).filter(key => key !== 'total' && !key.endsWith('.d.ts'))), new Set(sources), 'Application files were excluded from coverage.')
+execFileSync('python3', [fileURLToPath(new URL('../../ci/check_coverage.py', import.meta.url))], { stdio: 'inherit' })
 console.log('Full application coverage scope and regression floors verified; production/browser coverage is separate.')

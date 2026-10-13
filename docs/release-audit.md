@@ -39,11 +39,11 @@ it does not describe the previous implementation as unbounded.
 
 | Check | Observed result |
 | --- | --- |
-| Unit/integration | 270 passed in 21 files; no skipped/pending tests |
-| Unit coverage | 85.46% lines, 80.35% statements, 79.92% functions, 77.46% branches |
+| Unit/integration | 467 passed in 28 files; no skipped/pending tests |
+| Unit coverage | 100% lines, 99.73% statements, 98.84% functions, 97.30% branches; all four floors 95% |
 | Production Chromium | 20 passed across desktop and phone |
 | Development upload/memory | 2 passed across desktop and phone |
-| CI evidence/integrity | 54 passed; actionlint passed |
+| CI evidence/integrity | 86 passed; actionlint passed with the narrowly validated new-permission compatibility exception |
 | Typecheck/build | Passed; browser and server bundles generated |
 | Production smoke | Authentication, UTF-8, output cap, headers, quota persistence and shutdown passed |
 | Container | Non-root, read-only, dropped capabilities, health, PDF worker and restart checks passed |
@@ -52,6 +52,14 @@ it does not describe the previous implementation as unbounded.
 Every executable src/server TypeScript file remains in the unit coverage scope.
 Subprocess and Chromium execution are separate evidence, not added to the unit
 percentage. The Docker base is pinned to the digest actually built and checked.
+
+The later 95% requirement was met by adding 197 behavior tests without changing
+production source or the coverage denominator. Actual in-process HTTP-server
+and application bootstrap tests close the earlier measurement gap. No executable
+files were excluded. All 681 retained executable lines were measured as covered.
+The fresh expanded-suite mutation run detected all 200 type-valid faults, with
+zero survivors/timeouts and 50 invalid candidates excluded, in 194.659 seconds.
+Native coverage publishing remains subject to the actual GitHub job result.
 
 One live call through the actual `generateLesson` implementation returned HTTP
 200 in 3.115 seconds using Groq `openai/gpt-oss-120b`. It correctly solved
@@ -83,9 +91,11 @@ CodeRabbit CLI was unavailable (`command not found`); independent agent review
 was completed. No automated review result is invented.
 
 Ruleset `final countdown protection` is active and requires `release-gate`,
-with no bypass actors. Its additional legacy Bandit/code-quality/95%-coverage
-requirements still need administrator reconciliation. The connected integration
-cannot update that endpoint. The workflow does not bypass protected main.
+with no bypass actors. The user's 95% requirement is preserved. The publishing
+job supplies GitHub's native line-coverage evidence and waits for processing;
+upload failure blocks the final gate. Bandit/code-quality requirements remain
+in place. The connected integration cannot edit that administration endpoint;
+the workflow does not bypass protected main.
 
 Physical voice quality, HTTPS hosting, persistent deployment storage, real
 provider quotas and further teaching-quality evaluation remain release operations.

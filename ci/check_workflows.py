@@ -1,12 +1,27 @@
 """Small structural gate; actionlint independently validates GitHub syntax."""
 import json
+import math
 import re
 from pathlib import Path
 import yaml
 
+CHECKOUT = 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
+HEAD_REF = '${{ github.event.pull_request.head.sha || github.sha }}'
+DOWNLOAD = 'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093'
+UPLOAD = 'actions/upload-code-coverage@2b21a77928be8d5168c2b9581a67f2adbebacc52'
+REQUIRED_JOBS = {'integrity', 'core', 'browser', 'container', 'security', 'coverage'}
+ACTIONLINT = '.ci-tools/actionlint -color -ignore \'^unknown permission scope "code-quality"\\.\''
+
 
 def check(root):
     contract = json.loads((root / 'ci/release-gates.json').read_text())
+    floors = contract.get('coverage_floors')
+    if not isinstance(floors, dict) or set(floors) != {'lines', 'statements', 'functions', 'branches'} or any(type(value) not in (int, float) or not math.isfinite(value) or not 95 <= value <= 100 for value in floors.values()):
+        raise ValueError('Every coverage metric must retain a finite floor of at least 95%.')
+    if set(contract['required_jobs']) != REQUIRED_JOBS:
+        raise ValueError('Required release gates, including coverage publishing, cannot be removed.')
+    if [command for command in contract['commands']['integrity'] if '.ci-tools/actionlint' in command] != [ACTIONLINT]:
+        raise ValueError('Actionlint may exempt only its unsupported official code-quality scope.')
     package = json.loads((root / 'frontend/package.json').read_text())
     if package.get('scripts') != contract['npm_scripts']:
         raise ValueError('An npm script was changed, suppressed or given an undeclared hook.')
@@ -28,8 +43,11 @@ def check(root):
             raise ValueError('Gate bypass through conditional or failure suppression.')
         if not 1 <= int(job.get('timeout-minutes', 0)) <= 15:
             raise ValueError('Every gate requires a bounded timeout.')
-        allowed_permissions = {'contents': 'read', 'security-events': 'write', 'actions': 'read'}
-        if 'permissions' in job and (name != 'security' or job['permissions'] != allowed_permissions):
+        allowed_permissions = {
+            'security': {'contents': 'read', 'security-events': 'write', 'actions': 'read'},
+            'coverage': {'contents': 'read', 'code-quality': 'write', 'pull-requests': 'read'},
+        }
+        if name in allowed_permissions and job.get('permissions') != allowed_permissions[name] or name not in allowed_permissions and 'permissions' in job:
             raise ValueError('Unexpected job token permissions.')
         commands = []
         for step in job.get('steps', []):
@@ -55,6 +73,25 @@ def check(root):
         raise ValueError('Final verdict must run and inspect every gate, including failed/skipped ones.')
     if verdict.get('env', {}).get('NEEDS_JSON') != '${{ toJSON(needs) }}':
         raise ValueError('Final verdict must use actual dependency outcomes.')
+    core = jobs['core']
+    checkouts = [step for step in core['steps'] if step.get('uses', '').split('@')[0] == 'actions/checkout']
+    if len(checkouts) != 1 or checkouts[0].get('uses') != CHECKOUT or checkouts[0].get('with') != {'ref': HEAD_REF}:
+        raise ValueError('Coverage evidence must be generated from the exact PR head.')
+    artifacts = [step for step in core['steps'] if step.get('with', {}).get('name') == 'unit-and-coverage']
+    paths = {'frontend/test-results/unit.json', 'frontend/coverage/coverage-summary.json', 'frontend/coverage/cobertura-coverage.xml', 'frontend/test-results/mutations.json'}
+    if len(artifacts) != 1 or artifacts[0].get('uses') != 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02' or set(artifacts[0].get('with', {}).get('path', '').split()) != paths:
+        raise ValueError('Required test and coverage evidence must be retained in the artifact.')
+    coverage = jobs['coverage']
+    if coverage.get('needs') != ['core'] or coverage.get('steps') != [
+        {'uses': CHECKOUT, 'with': {'ref': HEAD_REF}},
+        {'uses': DOWNLOAD, 'with': {'name': 'unit-and-coverage', 'path': 'coverage-evidence'}},
+        {'uses': UPLOAD, 'with': {
+            'file': 'coverage-evidence/coverage/cobertura-coverage.xml',
+            'language': 'TypeScript', 'label': 'code-coverage/vitest',
+            'fail-on-error': 'true', 'wait-for-processing-timeout': '160',
+        }},
+    ]:
+        raise ValueError('Coverage publisher must upload the verified report without skipped or suppressed evidence.')
     security = jobs['security']
     if security.get('strategy', {}).get('matrix', {}).get('language') != ['actions', 'javascript-typescript', 'python']:
         raise ValueError('Security scanner scope changed.')

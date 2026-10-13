@@ -1,8 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { WrittenReply } from './WrittenReply'
 import { calculate } from './math'
+import { plotPath } from './drawing'
 import type { Lesson } from './lesson'
 import DOMPurify from 'dompurify'
+import handwritingFont from '../public/fonts/Caveat.ttf?inline'
+
+// These CSS longhands have equivalent SVG presentation attributes. Everything
+// else remains unsupported; the ordinary sanitizer/resource checks still apply.
+const presentationStyles = ['fill', 'fill-opacity', 'fill-rule', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-linecap', 'stroke-linejoin', 'stroke-dasharray', 'stroke-dashoffset', 'opacity', 'color', 'font-family', 'font-size', 'font-weight', 'font-style', 'text-anchor', 'dominant-baseline', 'letter-spacing', 'word-spacing', 'stop-color', 'stop-opacity']
+function plotTuple(source: string | null) {
+  const tokens = (source ?? '').trim().split(/[\s,]+/)
+  const values = tokens.map(Number)
+  if (tokens.length !== 4 || tokens.some(token => !/^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(token)) || values.some(value => !Number.isFinite(value) || Math.abs(value) > 10000)) throw new Error('Plot boxes and domains need four finite numbers between -10000 and 10000.')
+  return values
+}
 
 type Parameter = NonNullable<Extract<Lesson['blocks'][number], { kind: 'svg' }>['parameters']>[number]
 export function bindSvg(source: string, values: Record<string, number>) {
@@ -15,6 +27,52 @@ export function prepareSvg(source: string) {
   if (input.querySelector('parsererror') || input.documentElement.localName !== 'svg') throw new Error('Return a complete SVG drawing with a viewBox.')
   const ids = Array.from(input.querySelectorAll('[id]')).map(element => element.id)
   if (new Set(ids).size !== ids.length) throw new Error('SVG element IDs must be unique.')
+  // Evaluate bounded numeric declarations before sanitization can remove an
+  // invalid marker and accidentally leave a model's incorrect fallback path.
+  const plots = Array.from(input.querySelectorAll('path[data-plot]'))
+  const axes = Array.from(input.querySelectorAll('g[data-axes]'))
+  if (plots.length > 32 || axes.length > 32) throw new Error('A drawing may contain at most 32 computed plots and 32 axes groups.')
+  for (const element of [...plots, ...axes]) {
+    const [x, y, width, height] = plotTuple(element.getAttribute('data-box'))
+    const [xMin, xMax, yMin, yMax] = plotTuple(element.getAttribute('data-domain'))
+    if (width <= 0 || height <= 0 || xMin >= xMax || yMin >= yMax) throw new Error('Plot dimensions must be positive and domain ranges must increase.')
+    if (element.localName === 'path') {
+      const expression = element.getAttribute('data-plot')?.trim() ?? ''
+      if (!expression || expression.length > 200) throw new Error('A plot needs an expression of 1–200 characters.')
+      const geometry = plotPath({ expression, x, y, width, height, xMin, xMax, yMin, yMax })
+      if (!geometry) throw new Error('The plot has no drawable curve in this range. Check its expression and domain.')
+      element.setAttribute('d', geometry)
+    } else {
+      if (element.getAttribute('data-axes') !== 'true') throw new Error('An axes declaration must use data-axes="true".')
+      element.replaceChildren()
+      const size = Math.min(width, height) / 15
+      const append = (tag: string, attributes: Record<string, number | string>, text = '') => {
+        const child = input.createElementNS('http://www.w3.org/2000/svg', tag)
+        for (const [key, value] of Object.entries(attributes)) child.setAttribute(key, String(value))
+        child.textContent = text; element.append(child)
+      }
+      const ink = { stroke: 'currentColor', 'stroke-width': size / 12 }
+      if (yMin <= 0 && yMax >= 0) {
+        const axisY = y + yMax / (yMax - yMin) * height
+        append('line', { x1: x, y1: axisY, x2: x + width, y2: axisY, ...ink })
+        append('text', { x: x + width - size / 5, y: Math.max(y + size, axisY - size / 3), 'font-size': size, 'text-anchor': 'end', fill: 'currentColor' }, 'x')
+      }
+      if (xMin <= 0 && xMax >= 0) {
+        const axisX = x - xMin / (xMax - xMin) * width
+        append('line', { x1: axisX, y1: y, x2: axisX, y2: y + height, ...ink })
+        append('text', { x: Math.min(x + width - size, axisX + size / 3), y: y + size, 'font-size': size, fill: 'currentColor' }, 'y')
+      }
+    }
+  }
+  const style = document.createElement('span').style
+  for (const element of Array.from(input.querySelectorAll('[style]'))) {
+    style.cssText = element.getAttribute('style') ?? ''
+    for (const property of presentationStyles) {
+      const value = style.getPropertyValue(property)
+      if (value) element.setAttribute(property, value)
+    }
+    element.removeAttribute('style')
+  }
   // Avoid IDs such as 'blur' being stripped as browser-global name collisions.
   for (const element of Array.from(input.querySelectorAll('*'))) {
     for (const attr of Array.from(element.attributes)) {
@@ -51,6 +109,17 @@ export function prepareSvg(source: string) {
   }
   root.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
   root.setAttribute('width', String(box[2])); root.setAttribute('height', String(box[3]))
+  if (root.querySelector('text')) {
+    if (!root.getAttribute('font-family')) root.setAttribute('font-family', 'Caveat, cursive')
+    for (const element of [root, ...Array.from(root.querySelectorAll('[font-family]'))]) {
+      if (/^cursive$/i.test(element.getAttribute('font-family')?.trim() ?? '')) element.setAttribute('font-family', 'Caveat, cursive')
+    }
+    // SVG images cannot inherit page fonts. Only this trusted bundled font CSS
+    // is added after sanitization, so the same drawing also works when saved.
+    const font = doc.createElementNS('http://www.w3.org/2000/svg', 'style')
+    font.textContent = `@font-face{font-family:Caveat;src:url('${handwritingFont}') format('truetype');font-style:normal;font-weight:400 700}`
+    root.prepend(font)
+  }
   return new XMLSerializer().serializeToString(root)
 }
 export default function SvgArtwork({ source, title, parameters = [], fallbackText }: { source: string; title: string; parameters?: Parameter[]; fallbackText?: string }) {

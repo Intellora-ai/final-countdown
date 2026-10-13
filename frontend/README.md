@@ -67,10 +67,19 @@ Provider billing/free quotas are separate from this open-source application.
   expressions use `x`, `+ - * / ^ **`, parentheses, `sin`, `cos`, `tan`, `abs`,
   `sqrt`, `exp`, `log`/`ln`, `pi`, and `e`. Multiplication is explicit (`2*x`).
 - Fit-to-content viewport, zoom, scroll/pan, and self-contained SVG downloads
-  including the locally bundled, open-licensed handwritten font.
-- New responses are text plus optional general SVG canvases, including
+  including the locally bundled, open-licensed handwritten font. Generated
+  SVG images embed that font for matching on-screen and downloaded labels.
+- The initial board is empty; the question/file/voice composer remains available.
+- Written explanations use measured, responsive handwritten SVG text on the board.
+  Optional model SVGs add illustrations and labels, including
   declarative interactive controls. The model decides when to draw; there is no
   lesson detector, subject router, forced quiz or mandatory teaching sequence.
+- General SVG supports freeform paths, text, gradients, transforms, masks,
+  clipping, patterns and filters, rather than a diagram or mind-map catalog.
+  Function curves can declare `data-plot`, `data-box` and `data-domain`; an
+  optional matching `data-axes="true"` group places zero axes numerically.
+  Parameter changes and exported geometry are calculated locally without another
+  model request. Numerical curves use bounded sampling, not a symbolic proof.
 - Earlier scene/diagram/math/template formats remain readable in saved boards.
 - Follow-ups receive their own ancestor conversation, up to eight turns within
   the request byte budget. Oldest turns are removed first. If one drawing is
@@ -91,6 +100,7 @@ or illustration is correct.
 | Proposed requirement | Decision and reason |
 | --- | --- |
 | Every message needs a visual/title/quiz | Removed. Let the question determine the presentation. |
+| Ask the model to position every paragraph in SVG | Removed. The existing handwritten text renderer measures and wraps prose; SVG artwork carries figures and annotations. |
 | Every subject needs a custom visual engine | Removed. General vector geometry handles diagrams and illustrations; a small expression parser handles numerical plots. |
 | Drawings must stay inside a fixed page | Removed. The viewport expands around actual rendered bounds, including text. |
 | Sentence-by-sentence speech queue | Removed. One utterance prevents cancelled audio from restarting and preserves punctuation/decimals. |
@@ -105,7 +115,9 @@ They do not prove model intelligence, microphone capture, or audible playback.
 `VERIFICATION.md` records the checks and live model evidence from this change.
 
 Caveat font and its SIL Open Font License are bundled under `public/fonts`;
-no external font request is required. The unused Python/proof engines were
+no external font request is required. Common inline SVG paint and typography
+styles become sanitized presentation attributes; scripts, outside resources
+and model-provided CSS stylesheets remain blocked. The unused Python/proof engines were
 retired; their earlier source remains available in Git history.
 
 Protected deployment and token budgets: [release instructions](RELEASE.md).

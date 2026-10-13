@@ -28,8 +28,8 @@ Dependabot groups React, React DOM and both type packages into one PR so
 coupled major upgrades are validated together. Node type major upgrades are
 held for an intentional runtime upgrade; the deployed runtime is Node 24.
 
-The measured baseline is 100% lines (681/681), 99.73% statements (1137/1140),
-98.84% functions (256/259) and 97.30% branches (829/852), including entry points.
+The measured baseline is 100% lines (748/748), 99.43% statements (1231/1238),
+98.88% functions (265/268) and 96.54% branches (893/925), including entry points.
 All four floors are 95%. These are execution measurements, not a correctness
 certificate. New in-process tests exercise the actual HTTP server and React
 bootstrap inside Vitest. Existing subprocess and Chromium checks remain separate

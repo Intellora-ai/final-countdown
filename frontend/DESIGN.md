@@ -18,7 +18,11 @@ Finite context, memory, processing time and untrusted input are real constraints
 | Send original full-size photos | No. Resize locally to at most 1024 pixels per side before sending. |
 | Accept unlimited bytes or pretend to read arbitrary binary formats | No. Bound resource use and report unsupported files. |
 | Separate text, diagram and photo model services | No. One configurable chat-completions endpoint; photos require its vision support. |
+| Make the model place every paragraph on the board | No. Native measured text renders the explanation; optional general SVG supplies figures and short labels. |
+| Add a second font asset or external typography service | No. Embed the existing bundled Caveat font into isolated SVG images and exports; keep its open license. |
 | Add SVG templates for every topic | No. Retain the general sanitized SVG renderer and local parameter controls. |
+| Ask the model to calculate graph coordinates and zero-axis placement | No. Optional SVG declarations reuse the existing numeric plotter; the model supplies expressions, ranges and composition. |
+| Install an entire drawing editor to improve teacher-generated artwork | No. An editor adds learner drawing and object manipulation; it does not improve the model's subject knowledge or arbitrary SVG composition. |
 | Retrain model weights for every learner | No. Personalization comes from supplied context; this app does not train the model. |
 | Add accounts now | No. Shared access password and per-browser learning storage remain a protected pilot. |
 | Trust browser storage forever | No. Export and restore learning backups, plus explicit storage failure notices. |

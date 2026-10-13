@@ -340,15 +340,26 @@ it('ends an overlong spoken turn with a useful error instead of leaving voice mo
   expect(send.mock.calls.filter(([url]) => url === '/api/lesson')).toHaveLength(0)
 })
 it.each([
-  ['SVG board', { kind: 'svg', title: 'Generated artwork', source: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><text x="10" y="30">The model’s explanation</text></svg>' }, false],
-  ['diagram', { kind: 'diagram', title: 'Generated relationship', nodes: [{ id: 'a', label: 'Start' }, { id: 'b', label: 'Finish' }], edges: [{ from: 'a', to: 'b' }] }, true],
-])('shows the written explanation only where needed for a generated %s', async (_name, block, separateWriting) => {
-  const lesson = { explanation: 'The model’s explanation', blocks: [block] }
+  ['SVG board', { kind: 'svg', title: 'Generated artwork', source: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><circle cx="100" cy="65" r="20"/><text x="10" y="30">An illustration label</text></svg>' }],
+  ['diagram', { kind: 'diagram', title: 'Generated relationship', nodes: [{ id: 'a', label: 'Start' }, { id: 'b', label: 'Finish' }], edges: [{ from: 'a', to: 'b' }] }],
+])('keeps the complete written explanation once alongside a generated %s', async (_name, block) => {
+  const lesson = { explanation: 'The complete explanation remains readable alongside the artwork. Every sentence belongs on the board.', blocks: [block] }
   vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockImplementation(async url => Response.json(String(url).endsWith('health') ? { modelConfigured: true } : { lesson })))
   render(<Canvas />)
   fireEvent.change(screen.getByLabelText('Your question'), { target: { value: 'Explain this visually' } })
   fireEvent.click(screen.getByRole('button', { name: 'Send' }))
-  await screen.findByRole('img', { name: block.title })
-  expect(Boolean(screen.queryByRole('img', { name: 'Written answer' }))).toBe(separateWriting)
+  const illustration = await screen.findByRole('img', { name: block.title })
+  const writing = screen.getAllByRole('img', { name: 'Written answer' })
+  expect(writing).toHaveLength(1)
+  expect(writing[0].textContent?.replace(/\s/g, '')).toBe(lesson.explanation.replace(/\s/g, ''))
+  if (block.kind === 'svg') {
+    const source = decodeURIComponent(illustration.getAttribute('src')!)
+    expect(source).toContain('An illustration label')
+    expect(source).toContain('cx="100" cy="65" r="20"')
+  } else {
+    expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Finish' })).toBeTruthy()
+  }
+  expect(JSON.parse(localStorage.getItem('visual-canvas/v1')!)[0].lesson.blocks).toEqual(lesson.blocks)
   expect(screen.queryByRole('alert')).toBeNull()
 })

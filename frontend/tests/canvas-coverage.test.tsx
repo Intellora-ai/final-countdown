@@ -39,6 +39,13 @@ function textFile(name: string, content: string) {
 function requestBody(send: ReturnType<typeof transport>, index = 0) {
   return JSON.parse(send.mock.calls.filter(([url]) => url === '/api/lesson')[index][1]!.body as string)
 }
+function expectBlankBoard() {
+  const board = screen.getByRole('region', { name: 'Blank canvas' })
+  expect(board.childElementCount).toBe(0)
+  expect(board.textContent).toBe('')
+  expect(screen.queryByRole('region', { name: 'Answer canvas' })).toBeNull()
+  expect((screen.getByLabelText('Your question') as HTMLTextAreaElement).disabled).toBe(false)
+}
 
 it('opens a selected history entry, focuses its composer, and starts a separate topic with no ancestors', async () => {
   const first = saved('first'), second = saved('second')
@@ -59,7 +66,9 @@ it('opens a selected history entry, focuses its composer, and starts a separate 
   expect(requestBody(send).memory).toEqual([{ question: first.question, lesson: first.lesson }])
   expect(JSON.parse(localStorage.getItem(historyKey)!).at(-1).parentId).toBe('first')
   fireEvent.click(screen.getByRole('button', { name: '+ New topic' }))
-  expect(screen.getByRole('heading', { name: /What do you want/ })).toBeTruthy()
+  expectBlankBoard()
+  expect(document.activeElement).toBe(screen.getByLabelText('Your question'))
+  expect((screen.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled).toBe(true)
   expect(screen.queryByLabelText('Keep conversation context')).toBeNull()
   ask('A new subject')
   await screen.findByRole('heading', { name: 'Recovered lesson', level: 1 })
@@ -77,11 +86,38 @@ it('honors an unchecked conversation-context control without attaching a parent'
   expect(JSON.parse(localStorage.getItem(historyKey)!).at(-1).parentId).toBeUndefined()
 })
 
+it.each([
+  {
+    collision: 'the question but not the explanation',
+    older: { question: 'Describe the mechanism.', explanation: 'The mechanism follows a reversible step.' },
+    selected: { question: 'Describe the mechanism.', explanation: 'The mechanism responds to a different constraint.' },
+  },
+  {
+    collision: 'the explanation but not the question',
+    older: { question: 'Describe the mechanism in the first setting.', explanation: 'The mechanism preserves the same relationship.' },
+    selected: { question: 'Describe the mechanism in the second setting.', explanation: 'The mechanism preserves the same relationship.' },
+  },
+])('retains independent recalled learning when boards share only $collision', async ({ older, selected }) => {
+  const olderLesson = { explanation: older.explanation, blocks: [] }
+  const selectedLesson = { explanation: selected.explanation, blocks: [] }
+  localStorage.setItem(historyKey, JSON.stringify([
+    { id: 'older-independent-board', question: older.question, lesson: olderLesson },
+    { id: 'selected-independent-board', question: selected.question, lesson: selectedLesson },
+  ]))
+  const send = transport(); render(<Canvas />)
+  ask('Continue the mechanism explanation.')
+  await screen.findByRole('heading', { name: 'Recovered lesson', level: 1 })
+  const body = requestBody(send)
+  expect(body.memory).toEqual([{ question: selected.question, lesson: selectedLesson }])
+  expect(body.recall).toBe(`Earlier question: ${older.question}\nAnswer: ${older.explanation}`)
+  expect(JSON.parse(localStorage.getItem(historyKey)!).at(-1).parentId).toBe('selected-independent-board')
+})
+
 it('rejects corrupt browser history and opens an empty board', async () => {
   localStorage.setItem(historyKey, '{broken JSON')
   transport(); render(<Canvas />); settings()
   expect(screen.getByText('No lessons yet.')).toBeTruthy()
-  expect(screen.getByRole('heading', { name: /What do you want/ })).toBeTruthy()
+  expectBlankBoard()
   await screen.findByText('Model configured')
 })
 
@@ -186,7 +222,8 @@ it('restores an empty backup into a blank board and treats an empty file selecti
   fireEvent.change(screen.getByLabelText('Restore learning'), { target: { files: [] } })
   expect(screen.getByRole('heading', { name: 'Lesson old', level: 1 })).toBeTruthy()
   fireEvent.change(screen.getByLabelText('Restore learning'), { target: { files: [backup({ learner: 'New goals', entries: [] })] } })
-  await screen.findByRole('heading', { name: /What do you want/ })
+  await screen.findByRole('region', { name: 'Blank canvas' })
+  expectBlankBoard()
   expect(localStorage.getItem(historyKey)).toBe('[]')
   expect(localStorage.getItem(learnerKey)).toBe('New goals')
   expect(screen.getByText('No lessons yet.')).toBeTruthy()
@@ -233,7 +270,7 @@ it('erases all learning and attached material while cancelling a pending answer'
   fireEvent.click(screen.getByRole('button', { name: 'Erase all learning' }))
   expect(signal.aborted).toBe(true)
   expect(screen.getByText('No lessons yet.')).toBeTruthy()
-  expect(screen.getByRole('heading', { name: /What do you want/ })).toBeTruthy()
+  expectBlankBoard()
   expect(screen.queryByRole('button', { name: 'Remove old.txt' })).toBeNull()
   expect(localStorage.getItem(historyKey)).toBeNull()
   expect(localStorage.getItem(learnerKey)).toBe('')
@@ -248,17 +285,20 @@ it('clears the visible board and explains when saved lessons cannot be erased fr
   vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => { throw new Error('Storage blocked') })
   fireEvent.click(screen.getByRole('button', { name: 'Erase all learning' }))
   expect(screen.getByRole('alert').textContent).toBe('Could not erase saved lessons.')
-  expect(screen.getByRole('heading', { name: /What do you want/ })).toBeTruthy()
+  expectBlankBoard()
   expect(JSON.parse(localStorage.getItem(historyKey)!)).toEqual([saved()])
   await screen.findByText('Model configured')
 })
 
 it('enforces the attachment count before reading files and preserves attachments after a failed batch', async () => {
   transport(); render(<Canvas />)
+  const guidance = /Relevant excerpts are sent with your question\. Photos need a vision-capable model\./
+  expect(screen.queryByText(guidance)).toBeNull()
   fireEvent.change(screen.getByLabelText('Attach files or photos'), { target: { files: null } })
   expect(screen.queryByRole('alert')).toBeNull()
   fireEvent.change(screen.getByLabelText('Attach files or photos'), { target: { files: [textFile('first.txt', 'Useful original material')] } })
   await screen.findByRole('button', { name: 'Remove first.txt' })
+  expect(screen.getByText(guidance)).toBeTruthy()
   const additional = ['a.txt', 'b.txt', 'c.txt'].map(name => textFile(name, 'Additional text'))
   const reads = additional.map(file => vi.spyOn(file, 'arrayBuffer'))
   fireEvent.change(screen.getByLabelText('Attach files or photos'), { target: { files: additional } })
@@ -270,6 +310,8 @@ it('enforces the attachment count before reading files and preserves attachments
   expect(screen.queryByRole('button', { name: 'Remove blank.txt' })).toBeNull()
   expect(screen.queryByText('Reading files locally…')).toBeNull()
   expect((screen.getByLabelText('Attach files or photos') as HTMLInputElement).disabled).toBe(false)
+  fireEvent.click(screen.getByRole('button', { name: 'Remove first.txt' }))
+  expect(screen.queryByText(guidance)).toBeNull()
 })
 
 it('recovers after an opaque attachment read failure and does not send a question before reading finishes', async () => {

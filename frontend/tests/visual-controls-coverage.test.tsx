@@ -28,7 +28,7 @@ function exportedXml(xml: string) {
   return document
 }
 function imageXml() {
-  const url = (screen.getByRole('img', { name: 'Explore circles' }) as HTMLImageElement).src
+  const url = screen.getByAltText('Explore circles').getAttribute('src')!
   return exportedXml(decodeURIComponent(url.slice(url.indexOf(',') + 1)))
 }
 function readBlob(blob: Blob): Promise<string> {
@@ -85,24 +85,30 @@ it.each(['scene', 'svg'])('keeps %s zoom between a readable half-size and four t
 
 it('updates independent SVG controls, exports exactly the current drawing and restores defaults for a new source', () => {
   const view = render(<SvgArtwork title="Explore circles" source={source} parameters={parameters} />)
-  fireEvent.change(screen.getByRole('slider', { name: 'Radius' }), { target: { value: '75' } })
-  fireEvent.change(screen.getByRole('slider', { name: 'Position' }), { target: { value: '250' } })
+  // Check accessible control identities once. Reuse their DOM references while
+  // changing the full SVG data URL: jsdom reparses it during style-based queries.
+  const radius = screen.getByRole('slider', { name: 'Radius' })
+  const position = screen.getByRole('slider', { name: 'Position' })
+  fireEvent.change(radius, { target: { value: '75' } })
+  fireEvent.change(position, { target: { value: '250' } })
   const current = imageXml()
   expect(current.querySelector('circle')!.getAttribute('r')).toBe('75')
   expect(current.querySelector('circle')!.getAttribute('cx')).toBe('250')
   expect(current.querySelector('text')!.textContent).toBe('Diameter: 150')
-  expect(screen.getByRole('slider', { name: 'Radius' }).parentElement!.querySelector('output')!.textContent).toBe('75')
-  const exported = screen.getByRole('link', { name: 'Save SVG' }) as HTMLAnchorElement
-  expect(exported.href).toBe((screen.getByRole('img') as HTMLImageElement).src)
+  expect(radius.parentElement!.querySelector('output')!.textContent).toBe('75')
+  // a[href] retains the native link semantics and visible name without jsdom's
+  // computed-style selector repeatedly parsing the full embedded font URL.
+  const exported = screen.getByText('Save SVG', { selector: 'a[href]' }) as HTMLAnchorElement
+  expect(exported.getAttribute('href')).toBe(screen.getByAltText('Explore circles').getAttribute('src'))
   expect(exported.download).toBe('artwork.svg')
   expect(current.documentElement.getAttribute('width')).toBe('400')
   expect(current.documentElement.getAttribute('height')).toBe('300')
   fireEvent.click(screen.getByRole('button', { name: 'Reset controls' }))
   expect(imageXml().querySelector('circle')!.getAttribute('r')).toBe('40')
   expect(imageXml().querySelector('circle')!.getAttribute('cx')).toBe('200')
-  fireEvent.change(screen.getByRole('slider', { name: 'Radius' }), { target: { value: '90' } })
+  fireEvent.change(radius, { target: { value: '90' } })
   view.rerender(<SvgArtwork title="Explore circles" source={source.replace('Diameter:', 'New diameter:')} parameters={parameters} />)
-  expect((screen.getByRole('slider', { name: 'Radius' }) as HTMLInputElement).value).toBe('40')
+  expect((screen.getByLabelText('Radius', { selector: 'input[type=range]' }) as HTMLInputElement).value).toBe('40')
   expect(imageXml().querySelector('text')!.textContent).toBe('New diameter: 80')
 })
 
@@ -251,7 +257,7 @@ it('preserves scene geometry and annotations, handles undefined plots and typese
   expect(path.getAttribute('stroke-width')).toBe('4')
   expect(path.getAttribute('fill')).toBe('#abcdef')
   expect(view.container.querySelectorAll('path')[1].getAttribute('fill')).toBe('none')
-  expect([...view.container.querySelectorAll('text')].some(label => label.textContent!.replace(/\s/g, '') === 'No defined points in this range'.replace(/\s/g, ''))).toBe(true)
+  expect([...view.container.querySelectorAll('text')].some(label => label.textContent!.replace(/\s/g, '') === 'No curve could be drawn in this range'.replace(/\s/g, ''))).toBe(true)
   const relation = [...view.container.querySelectorAll('text')].find(label => label.textContent === 'Relation')!
   expect(relation.getAttribute('x')).toBe('250')
   expect(relation.getAttribute('y')).toBe('188')

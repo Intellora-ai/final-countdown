@@ -39,9 +39,9 @@ it does not describe the previous implementation as unbounded.
 
 | Check | Observed result |
 | --- | --- |
-| Unit/integration | 468 passed in 28 files; no skipped/pending tests |
-| Unit coverage | 100% lines, 99.73% statements, 98.84% functions, 97.30% branches; all four floors 95% |
-| Production Chromium | 20 passed across desktop and phone |
+| Unit/integration | 514 passed in 28 files; no skipped/pending tests |
+| Unit coverage | 100% lines, 99.43% statements, 98.88% functions, 96.54% branches; all four floors 95% |
+| Production Chromium | 32 passed across desktop and phone |
 | Development upload/memory | 2 passed across desktop and phone |
 | CI evidence/integrity | 86 passed; actionlint passed with the narrowly validated new-permission compatibility exception |
 | Typecheck/build | Passed; browser and server bundles generated |
@@ -53,10 +53,11 @@ Every executable src/server TypeScript file remains in the unit coverage scope.
 Subprocess and Chromium execution are separate evidence, not added to the unit
 percentage. The Docker base is pinned to the digest actually built and checked.
 
-The later 95% requirement was met by adding 198 behavior tests without changing
+The earlier 95% requirement was met by adding 198 behavior tests without changing
 production source or the coverage denominator. Actual in-process HTTP-server
 and application bootstrap tests close the earlier measurement gap. No executable
-files were excluded. All 681 retained executable lines were measured as covered.
+files were excluded. At that snapshot all 681 retained executable lines were covered;
+the current canvas visual changes measure all 748 retained executable lines.
 The fresh expanded-suite mutation run detected all 200 type-valid faults, with
 zero survivors/timeouts and 50 invalid candidates excluded, in 192.608 seconds.
 The downloaded GitHub artifact at `8cf036b` independently validates the same
@@ -83,12 +84,28 @@ workers and prioritizes related tests, stopping after a genuine assertion
 failure. Survivors must run every selected assertion. Invalid candidates,
 process/test timeouts and collected-but-unrun cases cannot become assertion kills.
 
-The latest diagnostic campaign actually failed: 198 killed, 2 survived, zero
+An earlier diagnostic campaign actually failed: 198 killed, 2 survived, zero
 timeouts and 50 compiler-invalid candidates excluded. The surviving incoming
 learner-budget and legacy chart-limit changes exposed missing boundary coverage.
 Permanent regressions now cover both incoming/outgoing learner context and every
 retained list-block contract. A fresh campaign and GitHub execution determine
 the release verdict; the diagnostic report is not relabeled as successful.
+
+The visual pass additionally reproduced a memory-filter survivor and inverted
+attachment guidance. Permanent assertions distinguish independent recalled
+boards and empty/attached/removed upload states. The latest diagnostic was
+199 kills, one guidance survivor, zero timeouts and 51 compiler-invalid
+candidates; applying its exact mutation makes the strengthened journey fail.
+Fresh final artifacts determine the verdict, without waivers or fabricated kills.
+The subsequent final local campaign passed with 200 kills, zero survivors,
+zero timeouts and 51 compiler-invalid candidates excluded against 514/514
+baseline tests. The independent evidence validator passed.
+
+The [visual verification record](canvas-visual-verification.md) covers the blank
+paper board, complete responsive handwriting, embedded font, safe styling,
+computed curves/axes, real Groq successes and malformed-output failures, and the
+requested REA skill download. It separates public Studdy observations from
+features that remain unimplemented and private behavior that was not inspected.
 
 CI retains the final mutation JSON as an artifact. Its independent validator
 checks exact source/test/runner hashes, evidence counts, assertion failures and

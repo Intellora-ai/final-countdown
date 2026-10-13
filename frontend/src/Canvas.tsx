@@ -208,11 +208,11 @@ export function Canvas() {
         <div className="lesson-heading">{entry.lesson.title && <h1>{entry.lesson.title}</h1>}<button disabled={busy} onClick={() => speaking ? endVoice() : readAloud(entry.lesson)}>{speaking ? 'Stop speaking' : 'Read aloud'}</button></div>
         <section className="answer-board" aria-label="Answer canvas">
           <p className="sr-only">{entry.lesson.explanation}</p>
-          {(!entry.lesson.blocks.length || entry.lesson.blocks.some(block => block.kind !== 'svg')) && <WrittenReply text={entry.lesson.explanation} />}
-          {entry.lesson.blocks.length > 0 && <div className="visuals">{entry.lesson.blocks.map((block, i) => <Visual block={block} fallbackText={i === 0 ? entry.lesson.explanation : undefined} key={i} />)}</div>}
+          <WrittenReply text={entry.lesson.explanation} />
+          {entry.lesson.blocks.length > 0 && <div className="visuals">{entry.lesson.blocks.map((block, i) => <Visual block={block} key={i} />)}</div>}
         </section>
         {entry.lesson.check && <section className="check"><span>Your turn</span><p>{entry.lesson.check}</p><button onClick={() => { setFollowUp(true); inputRef.current?.focus() }}>Try it below ↓</button></section>}
-      </article> : <section className="welcome"><h1>What do you want<br />to understand?</h1><p>A blank board for your next idea.<br />Ask, sketch it out, and ask again.</p></section>}
+      </article> : <section className="blank-board" aria-label="Blank canvas" />}
       <div className="composer"><form onSubmit={event => { event.preventDefault(); void submit() }}>
         {entry && <label className="follow-up"><input type="checkbox" checked={followUp} onChange={e => setFollowUp(e.target.checked)} /> Keep conversation context</label>}
         <div className="file-input"><label>Attach files or photos<input type="file" multiple disabled={reading || busy} aria-label="Attach files or photos" onChange={e => { void addFiles(e.target.files); e.target.value = '' }} /></label>

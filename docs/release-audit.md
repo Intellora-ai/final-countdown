@@ -39,7 +39,7 @@ it does not describe the previous implementation as unbounded.
 
 | Check | Observed result |
 | --- | --- |
-| Unit/integration | 467 passed in 28 files; no skipped/pending tests |
+| Unit/integration | 468 passed in 28 files; no skipped/pending tests |
 | Unit coverage | 100% lines, 99.73% statements, 98.84% functions, 97.30% branches; all four floors 95% |
 | Production Chromium | 20 passed across desktop and phone |
 | Development upload/memory | 2 passed across desktop and phone |
@@ -53,13 +53,21 @@ Every executable src/server TypeScript file remains in the unit coverage scope.
 Subprocess and Chromium execution are separate evidence, not added to the unit
 percentage. The Docker base is pinned to the digest actually built and checked.
 
-The later 95% requirement was met by adding 197 behavior tests without changing
+The later 95% requirement was met by adding 198 behavior tests without changing
 production source or the coverage denominator. Actual in-process HTTP-server
 and application bootstrap tests close the earlier measurement gap. No executable
 files were excluded. All 681 retained executable lines were measured as covered.
 The fresh expanded-suite mutation run detected all 200 type-valid faults, with
-zero survivors/timeouts and 50 invalid candidates excluded, in 194.659 seconds.
-Native coverage publishing remains subject to the actual GitHub job result.
+zero survivors/timeouts and 50 invalid candidates excluded, in 192.608 seconds.
+The downloaded GitHub artifact at `8cf036b` independently validates the same
+coverage counts and 200-kill mutation result against that exact source/test
+snapshot. Core, integrity, browser, container and Python/Actions security passed.
+The new JavaScript test XML decoder triggered CodeQL; it now inspects raw exports
+in an isolated Node XML document without executing scripts, loading resources,
+sanitizing, repairs or scanner suppression. Native coverage upload returned
+HTTP 404; the final gate correctly failed. Native evidence is not claimed as
+accepted, and the 95% requirement remains in place. The fresh 468-test campaign
+report SHA256 is `f5797a12c73fea1b38c00931de6757fdd594d02541c657d73f43a88861f9f353`.
 
 One live call through the actual `generateLesson` implementation returned HTTP
 200 in 3.115 seconds using Groq `openai/gpt-oss-120b`. It correctly solved
@@ -92,8 +100,8 @@ was completed. No automated review result is invented.
 
 Ruleset `final countdown protection` is active and requires `release-gate`,
 with no bypass actors. The user's 95% requirement is preserved. The publishing
-job supplies GitHub's native line-coverage evidence and waits for processing;
-upload failure blocks the final gate. Bandit/code-quality requirements remain
+job attempts native line-coverage publishing and waits for processing; upload
+failure blocks the final gate. Bandit/code-quality requirements remain
 in place. The connected integration cannot edit that administration endpoint;
 the workflow does not bypass protected main.
 

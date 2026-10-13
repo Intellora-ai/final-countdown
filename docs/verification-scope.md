@@ -8,7 +8,7 @@ Python and GitHub Actions with CodeQL.
 
 | Retained component | Verified behavior | Release scope |
 | --- | --- | --- |
-| frontend | 467 tests in 28 files; 100% measured lines with all four coverage floors at 95%; 20 production browser checks plus 2 development checks, production/container smoke and 200 source mutations | Canvas release |
+| frontend | 468 tests in 28 files; 100% measured lines with all four coverage floors at 95%; 20 production browser checks plus 2 development checks, production/container smoke and 200 source mutations | Canvas release |
 | ci | 86 adversarial workflow/evidence/verdict/annotation tests, native coverage publishing and actionlint | Canvas release |
 
 ## Retired systems
@@ -42,9 +42,11 @@ The branch ruleset is active, requires `release-gate` from GitHub Actions and ha
 no bypass actors. Updating it through this connection still returns
 HTTP 403 `Resource not accessible by integration`. Repository administration
 access is needed for administration changes. The 95% coverage rule is retained;
-CI now publishes matching Cobertura line evidence to GitHub Code Quality. Native
-feature availability and the remaining Bandit/code-quality requirements must be
-verified separately. A workflow cannot grant itself administration permission.
+CI produces matching Cobertura line evidence and attempts native publishing.
+The observed upload at `8cf036b` returned HTTP 404, so no accepted native report
+is claimed and the final gate stays blocked. Feature availability and the
+remaining Bandit/code-quality requirements must be verified separately. A
+workflow cannot grant itself administration permission.
 
 A permanent gate test first failed when an extra `.yaml` workflow escaped the
 integrity checker. The checker now examines both GitHub-supported YAML extensions;

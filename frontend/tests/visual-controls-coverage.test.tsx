@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react'
+import { createRequire } from 'node:module'
 import { afterEach, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { Scene } from '../src/Scene'
@@ -15,9 +16,20 @@ const parameters = [
   { id: 'radius', label: 'Radius', min: 10, max: 100, value: 40, step: 1 },
   { id: 'offset', label: 'Position', min: 100, max: 300, value: 200, step: 5 },
 ]
+const { JSDOM } = createRequire(import.meta.url)('jsdom') as {
+  JSDOM: new (xml: string, options: { contentType: 'image/svg+xml' }) => { window: { document: Document; close(): void } }
+}
+function exportedXml(xml: string) {
+  // Inspect exact exported bytes in an isolated Node XML document. JSDOM's
+  // defaults disable scripts and external resources; malformed XML throws.
+  const isolated = new JSDOM(xml, { contentType: 'image/svg+xml' })
+  const document = isolated.window.document
+  isolated.window.close()
+  return document
+}
 function imageXml() {
   const url = (screen.getByRole('img', { name: 'Explore circles' }) as HTMLImageElement).src
-  return new DOMParser().parseFromString(decodeURIComponent(url.slice(url.indexOf(',') + 1)), 'image/svg+xml')
+  return exportedXml(decodeURIComponent(url.slice(url.indexOf(',') + 1)))
 }
 function readBlob(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -44,6 +56,15 @@ function downloadBrowser() {
   }) as typeof window.setTimeout)
   return { blobs, create, revoke, clicks, expiration }
 }
+
+it('inspects raw export XML without sanitizing content, executing scripts or repairing malformed XML', () => {
+  const xml = exportedXml('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><script>document.documentElement.setAttribute("data-executed", "true")</script><text>&lt;script&gt; remains literal</text></svg>')
+  expect(xml.documentElement.hasAttribute('data-executed')).toBe(false)
+  expect(xml.querySelector('script')!.textContent).toContain('setAttribute')
+  expect(xml.querySelector('text')!.textContent).toBe('<script> remains literal')
+  expect(() => exportedXml('<svg xmlns="http://www.w3.org/2000/svg"><g></svg>')).toThrow()
+  expect(() => exportedXml('<svg xmlns="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg"/>')).toThrow()
+})
 
 it.each(['scene', 'svg'])('keeps %s zoom between a readable half-size and four times size, then fits the page', kind => {
   if (kind === 'scene') render(<Scene block={scene} />)
@@ -120,7 +141,7 @@ it('exports a standalone, fitted scene with its font and paper, then releases th
     await waitFor(() => expect(browser.create).toHaveBeenCalledTimes(1), { timeout: 2000 })
     expect(fetch).toHaveBeenCalledWith('/fonts/Caveat.ttf')
     expect(browser.blobs[0].type).toBe('image/svg+xml')
-    const xml = new DOMParser().parseFromString(await readBlob(browser.blobs[0]), 'image/svg+xml')
+    const xml = exportedXml(await readBlob(browser.blobs[0]))
     expect(xml.querySelector('parsererror')).toBeNull()
     expect(xml.documentElement.namespaceURI).toBe('http://www.w3.org/2000/svg')
     expect(xml.documentElement.getAttribute('viewBox')).toBe(box.join(' '))

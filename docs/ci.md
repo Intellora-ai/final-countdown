@@ -62,7 +62,14 @@ tested repository code runs with the default read-only token. JSON totals,
 per-file counts, XML source paths and actual XML hit counts must agree before
 publishing. Upload errors remain fatal and the action waits for processing.
 Native publishing needs GitHub Code Quality enabled; artifacts alone do not
-enable the feature. Fork/stale-head uploads may be intentionally skipped by the
+enable the feature. GitHub documents availability on Team or Enterprise Cloud.
+The current integration receives HTTP 403 when reading the administration-only
+`code-quality/setup` endpoint, so it cannot establish the feature state. A
+repository owner can open [repository settings](https://github.com/Intellora-ai/final-countdown/settings),
+then Security → Code quality → Enable code quality → Save changes, if available.
+See [GitHub enablement instructions](https://docs.github.com/en/code-security/how-tos/maintain-quality-code/enable-code-quality).
+An unavailable feature must be resolved with GitHub; the 95% floors are not lowered.
+Fork/stale-head uploads may be intentionally skipped by the
 official action; the local 95% gate still applies and native evidence must not
 be claimed for such skips.
 
@@ -134,10 +141,14 @@ The initial attempt to activate ruleset 20990225 through the GitHub integration
 returned HTTP 403. It has since been activated and requires `release-gate`
 from GitHub Actions (integration 15368), with no bypass actors. Additional legacy
 Bandit and code-quality requirements remain in place, and the user's 95% coverage
-requirement is explicitly preserved and now supplied with native coverage
-evidence. This connection cannot edit that administration endpoint. Native
-feature availability must be established by the actual publishing job, rather
-than inferred from a passing local suite. See [verification scope](verification-scope.md).
+requirement is explicitly preserved. This connection cannot edit that
+administration endpoint. The actual 95%-coverage run at `8cf036b` passed core,
+integrity, browser, container and Python/Actions security, but native coverage
+upload returned HTTP 404 and JavaScript security found an unsafe XML decoder
+in a new test. The decoder now uses an isolated Node XML document with scripts
+and resources disabled, preserving raw malformed-XML failures. Upload errors
+remain fatal; no native evidence is claimed until GitHub accepts the report.
+See [verification scope](verification-scope.md).
 
 Scanner findings now emit GitHub error annotations with the SARIF source file,
 line and column when provided, rule identifier, diagnostic and the rule's

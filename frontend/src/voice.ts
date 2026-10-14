@@ -1,3 +1,4 @@
+import { startNaturalSpeech } from './natural-voice'
 export type SpeechRecognitionLike = {
   lang: string; interimResults: boolean; continuous: boolean
   onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal?: boolean }> }) => void) | null
@@ -47,7 +48,9 @@ export function startListening(onText: (text: string) => void, onDone: () => voi
 
 // One browser utterance owns the whole answer. Cancelling it cannot start a queue.
 let discardSpeech: (() => void) | undefined
+let natural: ReturnType<typeof startNaturalSpeech> | undefined
 export function stopSpeaking() {
+  natural?.stop(); natural = undefined
   discardSpeech?.()
   discardSpeech = undefined
   try {
@@ -58,6 +61,7 @@ export function stopSpeaking() {
   } catch { /* No active audio device. */ }
 }
 export function pauseSpeaking(paused: boolean): boolean {
+  if (natural) return natural.pause(paused)
   try {
     const synthesis = window.speechSynthesis
     const method = paused ? 'pause' : 'resume'
@@ -66,9 +70,15 @@ export function pauseSpeaking(paused: boolean): boolean {
     return true
   } catch { return false }
 }
-export function speak(text: string, onDone?: () => void, onError?: () => void, onProgress?: (charIndex: number) => void) {
+export function speak(text: string, onDone?: () => void, onError?: () => void, onProgress?: (charIndex: number) => void, naturalVoice = false) {
   stopSpeaking()
   if (!text.trim()) return false
+  if (naturalVoice) {
+    try {
+      natural = startNaturalSpeech(text, () => { natural = undefined; onDone?.() }, () => { natural = undefined; onError?.() }, onProgress)
+      return true
+    } catch { stopSpeaking(); return false }
+  }
   let active = true
   try {
     const utterance = new SpeechSynthesisUtterance(text)

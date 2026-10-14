@@ -1,0 +1,348 @@
+
+ RUN  v5.0.3 /workspace/final-countdown/frontend
+
+ ❯ tests/natural-voice.test.ts (15 tests | 1 failed) 2405ms
+   × preserves gesture-unlocked audio through complete Canvas conversation and interruption turns 1170ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/natural-voice.test.ts > preserves gesture-unlocked audio through complete Canvas conversation and interruption turns
+AssertionError: expected [] to have a length of 1 but got +0
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"app"[39m
+      [36m>[39m
+        [36m<aside[39m
+          [33mhidden[39m=[32m""[39m
+          [33mid[39m=[32m"lesson-history"[39m
+        [36m>[39m
+          [36m<h2[39m
+            [33mclass[39m=[32m"history-label"[39m
+          [36m>[39m
+            [0mSaved lessons[0m
+          [36m</h2>[39m
+          [36m<nav[39m
+            [33maria-label[39m=[32m"Saved lessons"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"history active"[39m
+            [36m>[39m
+              [0mExplain something.[0m
+            [36m</button>[39m
+          [36m</nav>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"local-note"[39m
+          [36m>[39m
+            [0mSaved in this browser.[0m
+          [36m</p>[39m
+          [36m<details[39m
+            [33mclass[39m=[32m"learner-settings"[39m
+          [36m>[39m
+            [36m<summary>[39m
+              [0mLearning memory[0m
+            [36m</summary>[39m
+            [36m<label>[39m
+              [36m<input[39m
+                [33mchecked[39m=[32m""[39m
+                [33mtype[39m=[32m"checkbox"[39m
+              [36m/>[39m
+              [0m Use and update memory[0m
+            [36m</label>[39m
+            [36m<textarea[39m
+              [33maria-label[39m=[32m"Learning memory"[39m
+              [33mmaxlength[39m=[32m"2000"[39m
+              [33mplaceholder[39m=[32m"Your goals, preferences and learning so far…"[39m
+            [36m/>[39m
+            [36m<p>[39m
+              [0mEditable notes and relevant older answers help personalize new topics. Files stay in this tab. No account or cross-device sync.[0m
+            [36m</p>[39m
+            [36m<button>[39m
+              [0mExport learning[0m
+            [36m</button>[39m
+            [36m<label>[39m
+              [0mRestore learning[0m
+              [36m<input[39m
+                [33maccept[39m=[32m"application/json,.json"[39m
+                [33maria-label[39m=[32m"Restore learning"[39m
+                [33mtype[39m=[32m"file"[39m
+              [36m/>[39m
+            [36m</label>[39m
+            [36m<button>[39m
+              [0mErase memory[0m
+            [36m</button>[39m
+            [36m<button>[39m
+              [0mErase all learning[0m
+            [36m</button>[39m
+          [36m</details>[39m
+        [36m</aside>[39m
+        [36m<main[39m
+          [33mid[39m=[32m"canvas"[39m
+        [36m>[39m
+          [36m<header>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"toolbar"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33maria-controls[39m=[32m"lesson-history"[39m
+                [33maria-expanded[39m=[32m"false"[39m
+                [33maria-label[39m=[32m"Saved lessons"[39m
+                [33mclass[39m=[32m"history-toggle"[39m
+              [36m>[39m
+                [0m☰[0m
+              [36m</button>[39m
+              [36m<a[39m
+                [33mclass[39m=[32m"brand"[39m
+                [33mhref[39m=[32m"#canvas"[39m
+              [36m>[39m
+                [0mBlackboard[0m
+              [36m</a>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"toolbar"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"connection"[39m
+              [36m>[39m
+                [0mModel configured[0m
+              [36m</span>[39m
+              [36m<select[39m
+                [33maria-label[39m=[32m"Board zoom"[39m
+              [36m>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"0.75"[39m
+                [36m>[39m
+                  [0m75[0m
+                  [0m%[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"1"[39m
+                [36m>[39m
+                  [0m100[0m
+                  [0m%[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"1.25"[39m
+                [36m>[39m
+                  [0m125[0m
+                  [0m%[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"1.5"[39m
+                [36m>[39m
+                  [0m150[0m
+                  [0m%[0m
+                [36m</option>[39m
+              [36m</select>[39m
+              [36m<button[39m
+                [33maria-label[39m=[32m"+ New topic"[39m
+                [33mclass[39m=[32m"new-topic"[39m
+              [36m>[39m
+                [0m+ New topic[0m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</header>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"board-stage"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"board-content"[39m
+              [33mstyle[39m=[32m"zoom: 1;"[39m
+            [36m>[39m
+              [36m<article>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"sr-only"[39m
+                [36m>[39m
+                  [0mQuestion: [0m
+                  [0mExplain something.[0m
+                [36m</p>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"lesson-heading"[39m
+                [36m/>[39m
+                [36m<section[39m
+                  [33maria-label[39m=[32m"Answer canvas"[39m
+                  [33mclass[39m=[32m"answer-board"[39m
+                [36m>[39m
+                  [36m<p[39m
+                    [33mclass[39m=[32m"sr-only"[39m
+                  [36m>[39m
+                    [0mA single idea.[0m
+                  [36m</p>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"written-reply"[39m
+                    [33mdata-reveal[39m=[32m"true"[39m
+                  [36m>[39m
+                    [36m<svg[39m
+                      [33maria-label[39m=[32m"Written answer"[39m
+                      [33mfont-family[39m=[32m"Caveat, cursive"[39m
+                      [33mrole[39m=[32m"img"[39m
+                      [33mstyle[39m=[32m"display: block; width: 100%; height: auto;"[39m
+                      [33mviewBox[39m=[32m"0 0 800 200"[39m
+                    [36m>[39m
+                      [36m<rect[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"spoken-highlight"[39m
+                        [33mheight[39m=[32m"39"[39m
+                        [33mrx[39m=[32m"8"[39m
+                        [33mwidth[39m=[32m"472"[39m
+                        [33mx[39m=[32m"36"[39m
+                        [33my[39m=[32m"32"[39m
+                      [36m/>[39m
+                      [36m<text[39m
+                        [33mfill[39m=[32m"currentColor"[39m
+                        [33mfont-size[39m=[32m"32"[39m
+                        [33mx[39m=[32m"48"[39m
+                        [33my[39m=[32m"64"[39m
+                      [36m>[39m
+                        [36m<tspan[39m
+                          [33mclass[39m=[32m"handwriting-row"[39m
+                          [33mdata-active[39m=[32m"true"[39m
+                          [33mstyle[39m=[32m"--row-index: 0;"[39m
+                          [33mx[39m=[32m"48"[39m
+                          [33my[39m=[32m"64"[39m
+                        [36m>[39m
+                          [0mA single idea.[0m
+                        [36m</tspan>[39m
+                      [36m</text>[39m
+                    [36m</svg>[39m
+                  [36m</div>[39m
+                [36m</section>[39m
+              [36m</article>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"teaching-controls"[39m
+          [36m>[39m
+            [36m<label>[39m
+              [0mVoice [0m
+              [36m<select[39m
+                [33maria-label[39m=[32m"Voice"[39m
+                [33mdisabled[39m=[32m""[39m
+              [36m>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"natural"[39m
+                [36m>[39m
+                  [0mNatural[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"browser"[39m
+                [36m>[39m
+                  [0mBrowser[0m
+                [36m</option>[39m
+              [36m</select>[39m
+            [36m</label>[39m
+            [36m<button>[39m
+              [0mStop speaking[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33maria-pressed[39m=[32m"true"[39m
+            [36m>[39m
+              [0mFollow teacher[0m
+            [36m</button>[39m
+            [36m<button>[39m
+              [0mPause reading[0m
+            [36m</button>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33maria-label[39m=[32m"Voice caption"[39m
+            [33maria-live[39m=[32m"off"[39m
+            [33mclass[39m=[32m"voice-caption"[39m
+          [36m>[39m
+            [0mA single idea.[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"composer"[39m
+          [36m>[39m
+            [36m<form>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"follow-up"[39m
+              [36m>[39m
+                [36m<input[39m
+                  [33mchecked[39m=[32m""[39m
+                  [33mtype[39m=[32m"checkbox"[39m
+                [36m/>[39m
+                [0m Keep conversation context[0m
+              [36m</label>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"file-input"[39m
+              [36m>[39m
+                [36m<label>[39m
+                  [0mAttach files or photos[0m
+                  [36m<input[39m
+                    [33maria-label[39m=[32m"Attach files or photos"[39m
+                    [33mmultiple[39m=[32m""[39m
+                    [33mtype[39m=[32m"file"[39m
+                  [36m/>[39m
+                [36m</label>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"input-row"[39m
+              [36m>[39m
+                [36m<textarea[39m
+                  [33maria-label[39m=[32m"Your question"[39m
+                  [33mmaxlength[39m=[32m"1000"[39m
+                  [33mplaceholder[39m=[32m"Ask a follow-up, or try answering…"[39m
+                  [33mrows[39m=[32m"2"[39m
+                [36m/>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"composer-actions"[39m
+                [36m>[39m
+                  [36m<button[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mEnd voice[0m
+                  [36m</button>[39m
+                  [36m<button[39m
+                    [33mtype[39m=[32m"button"[39m
+                  [36m>[39m
+                    [0mInterrupt[0m
+                  [36m</button>[39m
+                  [36m<button[39m
+                    [33mdisabled[39m=[32m""[39m
+                    [33mtype[39m=[32m"submit"[39m
+                  [36m>[39m
+                    [0mSend[0m
+                  [36m</button>[39m
+                [36m</div>[39m
+              [36m</div>[39m
+              [36m<p[39m
+                [33mrole[39m=[32m"status"[39m
+              [36m>[39m
+                [0mSpeaking…[0m
+              [36m</p>[39m
+            [36m</form>[39m
+          [36m</div>[39m
+        [36m</main>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ tests/natural-voice.test.ts:120:51
+    118|   const ask = () => act(() => microphones.at(-1)!.onresult?.({ results…
+    119|   ask()
+    120|   await waitFor(() => expect(contexts[0].sources).toHaveLength(1))
+       |                                                   ^
+    121|   expect(contexts).toHaveLength(1)
+    122|   act(() => contexts[0].sources[0].end())
+ ❯ runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 14 passed (15)
+   Start at  05:20:34
+   Duration  3.18s (tests 78%, environment 15%, transform 4%, import 3%)

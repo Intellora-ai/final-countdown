@@ -145,3 +145,13 @@ PDF.js and fflate are open-source parsers loaded on demand. General SVG drawings
 remain subject-independent, with optional local controls and no drawing-service
 charge. Model inference may have provider costs. Context improves the evidence
 available to the model; it does not promise perfect recall, reasoning or artwork.
+
+## Natural voice
+
+Select **Natural (English)** for local Kokoro speech. It requires no voice API key.
+The first spoken answer downloads the public model (roughly 90 MB); later answers
+reuse it. Keep `.canvas-state` or the production state volume to retain the cache.
+**Start voice** unlocks audio for the conversation. **Interrupt** stops the answer
+and listens again; **End voice** closes the session. **Browser** uses the device's
+speech service instead. See [voice evidence and limitations](../docs/natural-voice-verification.md)
+and [listen to a generated sample](../docs/evidence/natural-voice/teacher-sample.mp3).

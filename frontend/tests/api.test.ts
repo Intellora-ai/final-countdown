@@ -130,7 +130,7 @@ describe('one teaching path', () => {
   })
   it('boots without credentials and gives an actionable error instead of a fake lesson', async () => {
     const base = await endpoint()
-    expect(await (await fetch(base + '/api/health')).json()).toEqual({ ok: true, modelConfigured: false })
+    expect(await (await fetch(base + '/api/health')).json()).toEqual({ ok: true, modelConfigured: false, naturalVoice: true })
     const response = await fetch(base + '/api/lesson', { method: 'POST', body: JSON.stringify({ question: 'Energy' }) })
     expect(response.status).toBe(503)
     expect((await response.json()).error).toContain('connect a model')

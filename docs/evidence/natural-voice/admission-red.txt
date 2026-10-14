@@ -1,0 +1,25 @@
+
+ RUN  v5.0.3 /workspace/final-countdown/frontend
+
+ ❯ tests/speech.test.ts (10 tests | 1 failed) 604ms
+   × releases admission immediately after interruption even when native synthesis cannot stop 547ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/speech.test.ts > releases admission immediately after interruption even when native synthesis cannot stop
+Error: Cancelled turn still holds a slot
+ ❯ Timeout._onTimeout tests/speech.test.ts:59:95
+     57|     const controller = new AbortController()
+     58|     const request = fetch(base, { method: 'POST', body: JSON.stringify…
+     59|     await Promise.race([pending[i], new Promise((_resolve, reject) => …
+       |                                                                                               ^
+     60|     controller.abort(); await request
+     61|     await new Promise(resolve => setTimeout(resolve, 20))
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 9 passed (10)
+   Start at  05:14:28
+   Duration  761ms (tests 90%, transform 5%, import 4%)

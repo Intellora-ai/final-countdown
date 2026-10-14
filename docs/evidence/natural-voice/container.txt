@@ -1,0 +1,1 @@
+Container passed: non-root, read-only filesystem, authentication, static assets, PDF worker, persistent quota and restart.

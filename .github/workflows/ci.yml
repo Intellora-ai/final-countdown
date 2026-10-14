@@ -5,6 +5,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+env:
+  # CPU libraries ship with the package; unused CUDA providers are unnecessary.
+  ONNXRUNTIME_NODE_INSTALL: skip
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: true

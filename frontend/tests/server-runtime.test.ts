@@ -65,7 +65,7 @@ it('boots the actual server and serves public readiness without exposing protect
     if (method === 'GET') expect(await response.json()).toEqual({ ok: true })
     else expect(await response.text()).toBe('')
   }
-  expect(await (await fetch(base + '/api/health', { headers })).json()).toEqual({ ok: true, modelConfigured: false })
+  expect(await (await fetch(base + '/api/health', { headers })).json()).toEqual({ ok: true, modelConfigured: false, naturalVoice: true })
   for (const path of ['/', '/api/lesson', '/api/health']) {
     const response = await fetch(base + path, { method: 'POST' })
     expect(response.status).toBe(401)

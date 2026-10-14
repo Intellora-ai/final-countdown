@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { speech } from './speech.ts'
 import { compactContext } from './context.ts'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import { lessonInstructions, modelLessonSchema, requestSchema, MAX_REQUEST_BYTES } from '../src/lesson.ts'
@@ -75,7 +76,7 @@ function json(res: ServerResponse, status: number, value: unknown) {
 export async function api(req: IncomingMessage, res: ServerResponse, config = modelConfig()) {
   const path = (req.url ?? '').split('?')[0]
   if (path === '/api/health' && (req.method === 'GET' || req.method === 'HEAD')) {
-    json(res, 200, { ok: true, modelConfigured: Boolean(config.url && config.model) }); return
+    json(res, 200, { ok: true, modelConfigured: Boolean(config.url && config.model), naturalVoice: true }); return
   }
   // Browser requests stay on the same origin. No cross-origin API access.
   if (req.headers.origin) {
@@ -85,6 +86,7 @@ export async function api(req: IncomingMessage, res: ServerResponse, config = mo
       }
     } catch { json(res, 403, { error: 'Invalid origin.' }); return }
   }
+  if (path === '/api/speech' && req.method === 'POST') { await speech(req, res); return }
   if (path !== '/api/lesson' || req.method !== 'POST') {
     json(res, 404, { error: 'Unknown API route.' }); return
   }

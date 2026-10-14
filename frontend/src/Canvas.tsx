@@ -6,6 +6,7 @@ import { passages, readAttachment, type Attachment } from './attachments'
 import { WrittenReply } from './WrittenReply'
 import { Visual } from './Visual'
 import { pauseSpeaking, recognitionAvailable, speak, startListening, stopSpeaking } from './voice'
+import { clearPreparedVoice, prepareNaturalVoice } from './natural-voice'
 
 const historySchema = z.array(z.object({ id: z.string(), parentId: z.string().optional(), question: z.string(), lesson: lessonSchema }))
 type Entry = z.infer<typeof historySchema>[number]
@@ -73,6 +74,7 @@ export function Canvas() {
   const [error, setError] = useState('')
   const [storageError, setStorageError] = useState('')
   const [connected, setConnected] = useState<boolean | null>(null)
+  const [naturalVoice, setNaturalVoice] = useState(false)
   const [followUp, setFollowUp] = useState(() => entries.length > 0)
   const [listening, setListening] = useState(false)
   const [speaking, setSpeaking] = useState(false)
@@ -108,12 +110,12 @@ export function Canvas() {
     const health = new AbortController()
     fetch('/api/health', { signal: health.signal }).then(r => {
       if (!r.ok) throw new Error(); return r.json()
-    }).then(r => { if (!health.signal.aborted) setConnected(r.modelConfigured === true) })
+    }).then(r => { if (!health.signal.aborted) { setConnected(r.modelConfigured === true); setNaturalVoice(r.naturalVoice === true) } })
       .catch(() => { if (!health.signal.aborted) setError('The teaching server is unavailable. Restart the development server.') })
     return () => {
       health.abort(); requestRef.current?.abort(); requestRef.current = null
       voiceRun.current++
-      stopListeningRef.current(); stopSpeaking()
+      stopListeningRef.current(); stopSpeaking(); clearPreparedVoice()
     }
   }, [])
 
@@ -122,7 +124,7 @@ export function Canvas() {
     setListening(false); setSpeaking(false)
     setPaused(false); setProgress(undefined)
   }
-  function endVoice() { voiceEnabled.current = false; setVoiceOn(false); stopAudio() }
+  function endVoice() { voiceEnabled.current = false; setVoiceOn(false); stopAudio(); clearPreparedVoice() }
   function cancelRequest() { requestRef.current?.abort(); requestRef.current = null; setBusy(false) }
   function select(id: string | null) {
     freshBoard.current = undefined
@@ -142,11 +144,11 @@ export function Canvas() {
       setProgress(undefined)
       if (voiceEnabled.current) listenRef.current()
     }, () => {
-      if (run === voiceRun.current) voiceFailed('Audio playback failed. You can read the answer or try Read aloud again.')
+      if (run === voiceRun.current) voiceFailed(naturalVoice ? 'Natural voice is unavailable. Try again or select Browser voice.' : 'Audio playback failed. You can read the answer or try Read aloud again.')
     }, index => {
       if (run !== voiceRun.current) return
       setProgress(index)
-    })
+    }, naturalVoice)
     if (!started) voiceFailed('Spoken answers are unavailable in this browser.')
   }
   async function submit(spoken?: string) {
@@ -198,6 +200,7 @@ export function Canvas() {
   }
   function listen() {
     cancelRequest(); stopAudio(); setVoiceError('')
+    if (naturalVoice && !prepareNaturalVoice()) { voiceFailed('Audio playback is unavailable in this browser. Select Browser voice or type your question.'); return }
     voiceEnabled.current = true; setVoiceOn(true); setListening(true)
     const run = voiceRun.current
     let received = false
@@ -249,6 +252,7 @@ export function Canvas() {
       </div>
       </div>
       {entry && <div className="teaching-controls">
+        <label>Voice <select aria-label="Voice" value={naturalVoice ? 'natural' : 'browser'} disabled={speaking} onChange={event => setNaturalVoice(event.target.value === 'natural')}><option value="natural">Natural (English)</option><option value="browser">Browser</option></select></label>
         <button disabled={busy} onClick={() => speaking ? endVoice() : readAloud(entry.lesson)}>{speaking ? 'Stop speaking' : 'Read aloud'}</button>
         <button aria-pressed={followTeacher} onClick={() => setFollowTeacher(!followTeacher)}>Follow teacher</button>
         {speaking && <button onClick={() => { if (pauseSpeaking(!paused)) setPaused(!paused); else voiceFailed('Playback controls are unavailable. You can stop reading and try again.') }}>{paused ? 'Resume reading' : 'Pause reading'}</button>}

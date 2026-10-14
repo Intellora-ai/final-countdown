@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 const boundary = vi.hoisted(() => ({ load: vi.fn(), tokenizer: vi.fn(), generate: vi.fn(), env: {} }))
 vi.mock('@huggingface/transformers', () => ({ StyleTextToSpeech2Model: { from_pretrained: boundary.load }, AutoTokenizer: { from_pretrained: boundary.tokenizer }, env: boundary.env }))
 vi.mock('kokoro-js', () => ({ KokoroTTS: class { generate = boundary.generate } }))
@@ -6,6 +6,13 @@ beforeEach(() => {
   vi.resetModules(); vi.clearAllMocks()
   boundary.load.mockResolvedValue({}); boundary.tokenizer.mockResolvedValue({})
   boundary.generate.mockResolvedValue({ audio: new Float32Array([0, .2, -.2]), sampling_rate: 24000, toWav: () => new Uint8Array([82, 73, 70, 70]) })
+})
+afterEach(() => vi.unstubAllEnvs())
+it('disables unnecessary runtime telemetry before loading the speech model', async () => {
+  vi.stubEnv('ORT_DISABLE_TELEMETRY', '0')
+  boundary.load.mockImplementation(async () => { expect(process.env.ORT_DISABLE_TELEMETRY).toBe('1'); return {} })
+  const { generateSpeech } = await import('../server/voice-model')
+  await expect(generateSpeech('Keep speech local.', new AbortController().signal)).resolves.toEqual(Buffer.from('RIFF'))
 })
 it('uses immutable CPU weights and returns generated waveform bytes for arbitrary text', async () => {
   const { generateSpeech, VOICE_MODEL, VOICE_REVISION } = await import('../server/voice-model')

@@ -6,6 +6,7 @@ export const VOICE_REVISION = '1939ad2a8e416c0acfeecc08a694d14ef25f2231'
 let model: Promise<import('kokoro-js').KokoroTTS> | undefined
 function load() {
   model ??= (async () => {
+    process.env.ORT_DISABLE_TELEMETRY = '1'
     const [{ KokoroTTS }, { StyleTextToSpeech2Model, AutoTokenizer, env }] = await Promise.all([import('kokoro-js'), import('@huggingface/transformers')])
     env.cacheDir = resolve(process.env.CANVAS_STATE_DIR ?? '.canvas-state', 'voice')
     const options = { revision: VOICE_REVISION }

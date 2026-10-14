@@ -1,5 +1,7 @@
 # Teaching board verification — 14 October 2026
 
+This records the earlier board-only checkpoint. Current natural-voice work and final validation are recorded in [natural voice verification](natural-voice-verification.md).
+
 The board now keeps one handwritten answer surface, general safe SVG artwork, persistent controls, optional teacher-follow scrolling, captions and native speech-boundary highlighting. Model selection stays configurable. No runtime dependency was added. This reconstructs observed public Studdy teaching-board behavior; it does not claim its private backend, accounts or prompt implementation.
 
 ## Subtraction and observed repairs

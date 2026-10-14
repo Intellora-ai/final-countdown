@@ -1,0 +1,35 @@
+
+ RUN  v5.0.3 /workspace/final-countdown/frontend
+
+ ❯ tests/voice-model.test.ts (10 tests | 1 failed) 80ms
+   × disables unnecessary runtime telemetry before loading the speech model 19ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/voice-model.test.ts > disables unnecessary runtime telemetry before loading the speech model
+AssertionError: promise rejected "AssertionError: expected '0' to be '1' //… { …(4) }" instead of resolving
+ ❯ tests/voice-model.test.ts:15:83
+     13|   boundary.load.mockImplementation(async () => { expect(process.env.OR…
+     14|   const { generateSpeech } = await import('../server/voice-model')
+     15|   await expect(generateSpeech('Keep speech local.', new AbortControlle…
+       |                                                                                   ^
+     16| })
+     17| it('uses immutable CPU weights and returns generated waveform bytes fo…
+
+Caused by: AssertionError: expected '0' to be '1' // Object.is equality
+
+Expected: "1"
+Received: "0"
+
+ ❯ Object.<anonymous> tests/voice-model.test.ts:13:92
+ ❯ server/voice-model.ts:13:31
+ ❯ server/voice-model.ts:25:17
+ ❯ tests/voice-model.test.ts:15:3
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 9 passed (10)
+   Start at  05:53:58
+   Duration  221ms (tests 64%, transform 25%, import 9%, worker 3%)

@@ -6,63 +6,61 @@
  RUN  v5.0.3 /workspace/final-countdown/frontend
       Coverage enabled with v8
 
- ✓ tests/provider-boundaries.test.ts (58 tests) 150ms
- ✓ tests/upload-boundaries.test.ts (70 tests) 848ms
-   ✓ actual EPUB archive failures and paths (14)
-     ✓ bounds genuine EPUB chapter text after following reading order 445ms
- ✓ tests/visual-controls-coverage.test.tsx (18 tests) 2862ms
-   ✓ keeps scene zoom between a readable half-size and four times size, then fits the page 590ms
-   ✓ keeps svg zoom between a readable half-size and four times size, then fits the page 583ms
-   ✓ updates independent SVG controls, exports exactly the current drawing and restores defaults for a new source 557ms
- ✓ tests/canvas-coverage.test.tsx (35 tests) 3525ms
-   ✓ opens a selected history entry, focuses its composer, and starts a separate topic with no ancestors 823ms
- ✓ tests/canvas-voice.test.tsx (32 tests) 3590ms
-   ✓ reads the board with captions, pause/resume and cancellable handwriting progress 547ms
-   ✓ lets the learner leave teacher tracking and handles unavailable pause controls 406ms
- ✓ tests/voice.test.ts (35 tests) 21ms
- ✓ tests/svg-artwork.test.tsx (60 tests) 1700ms
- ✓ tests/api.test.ts (24 tests) 162ms
- ✓ tests/cost-controls.test.ts (13 tests) 50ms
- ✓ tests/server-runtime.test.ts (13 tests) 397ms
- ✓ tests/visual-renderers.test.tsx (18 tests) 443ms
- ✓ tests/canvas.test.tsx (10 tests) 1260ms
-   ✓ starts with an empty accessible board and an available composer instead of a welcome lesson 322ms
- ✓ tests/written-reply.test.tsx (8 tests) 241ms
- ✓ tests/voice-model.test.ts (9 tests) 70ms
- ✓ tests/visual-mechanics.test.ts (10 tests) 48ms
- ✓ tests/generated-invariants.test.ts (10 tests) 101ms
- ✓ tests/responsiveness.test.ts (2 tests) 179ms
- ✓ tests/speech.test.ts (10 tests) 136ms
- ✓ tests/natural-voice.test.ts (15 tests) 1732ms
-   ✓ reads the complete original text in bounded pieces and completes after the last audible piece 877ms
+ ✓ tests/server-entry.test.ts (1 test) 926ms
+   ✓ serves deployment health while enforcing authentication and durable limits in the actual server 923ms
+ ✓ tests/svg-artwork.test.tsx (60 tests) 1446ms
+ ✓ tests/visual-renderers.test.tsx (18 tests) 468ms
+ ✓ tests/responsiveness.test.ts (2 tests) 177ms
+ ✓ tests/visual-controls-coverage.test.tsx (18 tests) 2081ms
+   ✓ keeps scene zoom between a readable half-size and four times size, then fits the page 366ms
+   ✓ keeps svg zoom between a readable half-size and four times size, then fits the page 365ms
+   ✓ updates independent SVG controls, exports exactly the current drawing and restores defaults for a new source 467ms
+ ✓ tests/voice-model.test.ts (10 tests) 97ms
+ ✓ tests/canvas-voice.test.tsx (32 tests) 2627ms
+   ✓ reads the board with captions, pause/resume and cancellable handwriting progress 409ms
+ ✓ tests/written-reply.test.tsx (8 tests) 350ms
+ ✓ tests/provider-boundaries.test.ts (58 tests) 87ms
+ ✓ tests/generated-invariants.test.ts (10 tests) 102ms
+ ✓ tests/cost-controls.test.ts (13 tests) 51ms
+ ✓ tests/lesson.test.ts (20 tests) 27ms
+ ✓ tests/speech.test.ts (10 tests) 170ms
+ ✓ tests/drawing.test.ts (48 tests) 163ms
+ ✓ tests/ink.test.ts (5 tests) 6ms
+ ✓ tests/math-note.test.tsx (12 tests) 227ms
+ ✓ tests/voice.test.ts (35 tests) 18ms
+ ✓ tests/text-layout.test.ts (5 tests) 8ms
+ ✓ tests/attachments.test.ts (8 tests) 1685ms
+   ✓ rejects an EPUB expansion larger than the local budget even when the compressed upload is tiny 1599ms
+ ✓ tests/natural-voice.test.ts (15 tests) 1730ms
+   ✓ reads the complete original text in bounded pieces and completes after the last audible piece 869ms
    ✓ preserves gesture-unlocked audio through complete Canvas conversation and interruption turns 447ms
- ✓ tests/attachments.test.ts (8 tests) 1759ms
-   ✓ rejects an EPUB expansion larger than the local budget even when the compressed upload is tiny 1675ms
- ✓ tests/lesson.test.ts (20 tests) 20ms
- ✓ tests/drawing.test.ts (48 tests) 230ms
- ✓ tests/server-entry.test.ts (1 test) 1251ms
-   ✓ serves deployment health while enforcing authentication and durable limits in the actual server 1250ms
- ✓ tests/canvas-callbacks-coverage.test.tsx (5 tests) 995ms
-   ✓ rejects queued microphone text, completion and error after changing topics 558ms
- ✓ tests/learner.test.ts (8 tests) 83ms
- ✓ tests/document-markup.test.ts (4 tests) 93ms
- ✓ tests/requirements.test.tsx (6 tests) 2365ms
-   ✓ New topic sends no previous topic in memory 432ms
-   ✓ bounds UTF-8 context while retaining the latest text from an oversized visual 1633ms
- ✓ tests/text-layout.test.ts (5 tests) 9ms
- ✓ tests/calculator.test.ts (2 tests) 12ms
- ✓ tests/main.test.tsx (1 test) 310ms
-   ✓ boots the actual application into the document root and exposes a usable question composer 308ms
- ✓ tests/ink.test.ts (5 tests) 4ms
- ✓ tests/math-note.test.tsx (12 tests) 263ms
+ ✓ tests/requirements.test.tsx (6 tests) 1748ms
+   ✓ bounds UTF-8 context while retaining the latest text from an oversized visual 1301ms
+ ✓ tests/server-runtime.test.ts (13 tests) 353ms
+ ✓ tests/canvas.test.tsx (10 tests) 1196ms
+   ✓ starts with an empty accessible board and an available composer instead of a welcome lesson 306ms
+ ✓ tests/canvas-coverage.test.tsx (35 tests) 2739ms
+   ✓ opens a selected history entry, focuses its composer, and starts a separate topic with no ancestors 469ms
+ ✓ tests/api.test.ts (24 tests) 123ms
+ ✓ tests/canvas-callbacks-coverage.test.tsx (5 tests) 811ms
+   ✓ rejects queued microphone text, completion and error after changing topics 398ms
+ ✓ tests/upload-boundaries.test.ts (70 tests) 602ms
+   ✓ actual EPUB archive failures and paths (14)
+     ✓ bounds genuine EPUB chapter text after following reading order 324ms
+ ✓ tests/main.test.tsx (1 test) 302ms
+   ✓ boots the actual application into the document root and exposes a usable question composer 301ms
+ ✓ tests/visual-mechanics.test.ts (10 tests) 69ms
+ ✓ tests/document-markup.test.ts (4 tests) 109ms
+ ✓ tests/calculator.test.ts (2 tests) 6ms
+ ✓ tests/learner.test.ts (8 tests) 53ms
 
  Test Files  32 passed (32)
-      Tests  575 passed (575)
-   Start at  05:32:23
-   Duration  12.19s (tests 59%, environment 30%, import 6%, transform 3%, worker 3%)
+      Tests  576 passed (576)
+   Start at  05:54:28
+   Duration  10.95s (tests 56%, environment 31%, import 6%, transform 4%, worker 3%)
 
-    Isolate  32 workers spawned · ~523ms startup each (spawn + environment, per file)
-             at least ~3.66s faster with isolate: false — reuses workers across files instead of one per file
+    Isolate  32 workers spawned · ~466ms startup each (spawn + environment, per file)
+             at least ~3.26s faster with isolate: false — reuses workers across files instead of one per file
 
 JSON report written to /workspace/final-countdown/frontend/test-results/unit.json
  % Coverage report from v8
@@ -70,7 +68,7 @@ JSON report written to /workspace/final-countdown/frontend/test-results/unit.jso
 File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
 -------------------|---------|----------|---------|---------|-------------------
 All files          |   98.07 |    95.71 |   96.84 |   99.56 |
- server            |   97.58 |    94.25 |     100 |   99.48 |
+ server            |   97.59 |    94.25 |     100 |   99.48 |
   api.ts           |   98.03 |    98.21 |     100 |     100 | 89
   index.ts         |     100 |    85.52 |     100 |     100 | ...31-32,40,52-61
   speech.ts        |   88.09 |    85.71 |     100 |   95.65 | 18
@@ -89,11 +87,11 @@ All files          |   98.07 |    95.71 |   96.84 |   99.56 |
 -------------------|---------|----------|---------|---------|-------------------
 
 =============================== Coverage summary ===============================
-Statements   : 98.07% ( 1474/1503 )
+Statements   : 98.07% ( 1475/1504 )
 Branches     : 95.71% ( 1027/1073 )
 Functions    : 96.84% ( 307/317 )
-Lines        : 99.56% ( 911/915 )
+Lines        : 99.56% ( 912/916 )
 ================================================================================
-Verified 575 assertions in 32 test files; none skipped.
+Verified 576 assertions in 32 test files; none skipped.
 Verified all four coverage floors at 95% or higher and matching Cobertura line evidence.
 Full application coverage scope and regression floors verified; production/browser coverage is separate.

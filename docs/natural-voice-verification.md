@@ -6,6 +6,8 @@ The canvas now synthesizes English speech with Kokoro-82M locally on the server.
 
 A spoken conversation needs microphone transcription, a teaching answer, audio playback and cancellation. Existing browser transcription and the teaching request remain. Kokoro replaces only the robotic output voice. One adapter caches the public model; one HTTP handler accepts bounded short text; one browser player plays native Web Audio. Every sentence is read, with bounded pieces and only one upcoming piece prefetched. Progress follows piece onset, not phoneme-aligned word timing.
 
+Unnecessary ONNX Runtime telemetry is disabled automatically before the library loads, using its upstream `ORT_DISABLE_TELEMETRY` control. No user configuration is needed. A regression failed before this removal and now passes.
+
 The model is `onnx-community/Kokoro-82M-v1.0-ONNX`, pinned to `1939ad2a8e416c0acfeecc08a694d14ef25f2231`, q8 CPU inference, voice `af_heart`. The initial download is roughly 90 MB; subsequent turns reuse model/cache. Cache is beneath `CANVAS_STATE_DIR/voice`, or `.canvas-state/voice` locally. Student text and generated audio remain in memory. Speech uses the same production authentication and origin protection as the existing API. Two admitted synthesis requests and one actual model inference bound CPU concurrency. HTTP requests release admission on disconnect; cancelled queued turns never enter inference. Already-running native inference may finish, but its audio is discarded.
 
 The original Start voice gesture unlocks one AudioContext for the entire conversation. End voice, failure and unmount close it. Standalone Read aloud closes its context when finished. Stop/Interrupt abort requests, stop audible nodes, and reject stale playback. Interrupt then opens the microphone; automatic acoustic barge-in/echo cancellation is not implemented.
@@ -19,9 +21,11 @@ Public Studdy's inspected landing demo had no audio track. Its authenticated pri
 ## Verified behavior
 
 - Genuine regression failures reproduced cancelled admission staying full and gesture-unlocked context being cleared through Canvas. Both now pass; retained failure logs accompany this document.
-- Full suite: 575 tests, 32 files, none skipped. Coverage: lines 99.56%, statements 98.07%, functions 96.84%, branches 95.71%; all four existing 95% floors retained.
+- Full suite: 576 tests, 32 files, none skipped. Coverage: lines 99.56%, statements 98.07%, functions 96.84%, branches 95.71%; all four existing 95% floors retained.
 - Actual `/api/speech` with the pinned cached model generated a 24 kHz, 4.825-second waveform. [Listen to its output](evidence/natural-voice/teacher-sample.mp3). This sample is real synthesis, not a prerecorded provider fixture.
 - Browser tests use that generated waveform and genuine Web Audio without mocking playback or disabling autoplay. Model/recognition transport in conversation tests is explicitly a fixture; physical microphones and speakers are not certified by them.
+- The final authenticated non-root read-only container also generated real 24 kHz speech through `/api/speech`: HTTP 200, finite waveform, 3.125 seconds of audio, no telemetry warnings. This is additional real-model evidence beyond the fixture container checks.
+- A live Groq `openai/gpt-oss-120b` teaching request returned HTTP 200 in 0.727 seconds, explained changing shadows clearly, and produced zero visual blocks as requested.
 - Typecheck, production build, production runtime checks, 86 integrity tests, and the non-root read-only authenticated production container pass.
 - Patched `sharp@0.35.5` and `onnxruntime-node@1.30.0` replace vulnerable transitive versions; application audit reports zero known advisories. CPU libraries are bundled; Docker and CI skip unused CUDA downloads.
 - Fresh source mutation gate: 200 valid mutations killed, zero survivors/timeouts; 57 compiler-invalid candidates excluded. The first run exposed a response-deadline test weakness and an equivalent redundant abort-listener option; failure evidence is retained. Tests now assert the deadline rather than hitting Vitest timeout, and the redundant option was deleted.

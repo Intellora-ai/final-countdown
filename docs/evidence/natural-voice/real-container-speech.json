@@ -1,0 +1,11 @@
+{
+  "status": 200,
+  "sampleRate": 24000,
+  "bytes": 300044,
+  "durationSeconds": 3.125,
+  "requestSeconds": 3.249,
+  "finite": true,
+  "telemetryWarnings": false,
+  "nonRoot": true,
+  "readOnly": true
+}

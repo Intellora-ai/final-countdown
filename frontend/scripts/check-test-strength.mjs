@@ -7,7 +7,7 @@ import ts from 'typescript'
 
 // Real source mutations run against an isolated snapshot, never the working app.
 // A timeout, transform failure, or missing test report is not a detected fault.
-const root = process.cwd(), count = 200, workers = 2, timeout = 15000
+const root = process.cwd(), count = 200, workers = 2, timeout = 30000
 const reportPath = resolve(root, 'test-results/mutations.json')
 const temporary = await mkdtemp(join(tmpdir(), 'canvas-mutations-'))
 const excluded = new Set(['node_modules', 'dist', 'dist-server', 'coverage', 'test-results', 'playwright-report', '.canvas-state', '.git'])

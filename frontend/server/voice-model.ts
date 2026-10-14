@@ -11,7 +11,7 @@ function load() {
     env.cacheDir = resolve(process.env.CANVAS_STATE_DIR ?? '.canvas-state', 'voice')
     const options = { revision: VOICE_REVISION }
     const [network, tokenizer] = await Promise.all([
-      StyleTextToSpeech2Model.from_pretrained(VOICE_MODEL, { ...options, dtype: 'q8', device: 'cpu', session_options: { intraOpNumThreads: 2, interOpNumThreads: 1 } }),
+      StyleTextToSpeech2Model.from_pretrained(VOICE_MODEL, { ...options, dtype: 'fp32', device: 'cpu', session_options: { intraOpNumThreads: 4, interOpNumThreads: 1 } }),
       AutoTokenizer.from_pretrained(VOICE_MODEL, options),
     ])
     return new KokoroTTS(network, tokenizer)

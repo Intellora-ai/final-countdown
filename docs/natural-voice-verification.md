@@ -8,7 +8,7 @@ A spoken conversation needs microphone transcription, a teaching answer, audio p
 
 Unnecessary ONNX Runtime telemetry is disabled automatically before the library loads, using its upstream `ORT_DISABLE_TELEMETRY` control. No user configuration is needed. A regression failed before this removal and now passes.
 
-The model is `onnx-community/Kokoro-82M-v1.0-ONNX`, pinned to `1939ad2a8e416c0acfeecc08a694d14ef25f2231`, q8 CPU inference, voice `af_heart`. The initial download is roughly 90 MB; subsequent turns reuse model/cache. Cache is beneath `CANVAS_STATE_DIR/voice`, or `.canvas-state/voice` locally. Student text and generated audio remain in memory. Speech uses the same production authentication and origin protection as the existing API. Two admitted synthesis requests and one actual model inference bound CPU concurrency. HTTP requests release admission on disconnect; cancelled queued turns never enter inference. Already-running native inference may finish, but its audio is discarded.
+The model is `onnx-community/Kokoro-82M-v1.0-ONNX`, pinned to `1939ad2a8e416c0acfeecc08a694d14ef25f2231`, full-precision CPU inference with four threads, voice `af_heart`. The initial download is roughly 326 MB; subsequent turns reuse model/cache. Cache is beneath `CANVAS_STATE_DIR/voice`, or `.canvas-state/voice` locally. Student text and generated audio remain in memory. Speech uses the same production authentication and origin protection as the existing API. Two admitted synthesis requests and one actual model inference bound CPU concurrency. HTTP requests release admission on disconnect; cancelled queued turns never enter inference. Already-running native inference may finish, but its audio is discarded.
 
 The original Start voice gesture unlocks one AudioContext for the entire conversation. End voice, failure and unmount close it. Standalone Read aloud closes its context when finished. Stop/Interrupt abort requests, stop audible nodes, and reject stale playback. Interrupt then opens the microphone; automatic acoustic barge-in/echo cancellation is not implemented.
 
@@ -18,7 +18,7 @@ Superpowers TDD, verification and independent review guided this change. REA's a
 
 Public Studdy's inspected landing demo had no audio track. Its authenticated private tutor was not available, so this implementation does not claim Studdy's private voice/model, backend, or an exact clone. A licensed Kokoro synthetic voice is used.
 
-## Verified behavior
+## Earlier baseline: verified behavior
 
 - Genuine regression failures reproduced cancelled admission staying full and gesture-unlocked context being cleared through Canvas. Both now pass; retained failure logs accompany this document.
 - Full suite: 576 tests, 32 files, none skipped. Coverage: lines 99.56%, statements 98.07%, functions 96.84%, branches 95.71%; all four existing 95% floors retained.
@@ -49,3 +49,23 @@ The first production Kokoro request including initialization took 4.976 s with c
 [Hear the real expressive Nano sample](evidence/natural-voice/expressive-nano-sample.mp3). A separately pinned local Whisper-tiny.en model (`87c7102498dcde7456f24cfd30239ca606ed9063`, Apache-2.0) recovered every spoken word in these three short comparison samples: [transcripts](evidence/natural-voice/intelligibility.json). This limited intelligibility check does not measure human preference, emotional realism, or general accuracy. Hosted transcription attempts returned HTTP 403, so local open-source inference replaced that external dependency instead of blocking verification.
 
 The product keeps Kokoro as its working default: it is smaller and generates this sample faster than playback. Nano proves a free expressive path exists, but its measured CPU delay would currently worsen the conversation. Replacing the single model adapter later does not change the canvas, conversation, interruption or playback code. No unverified second speech service is introduced into production.
+
+## Follow-up: measured bottlenecks and 2,000 generated cases
+
+The public MIT-licensed `@elevenlabs/client@1.28.0` shipped audio processor queues PCM on the audio thread. Actual REA MCP evidence is retained in [the SDK analysis](evidence/natural-voice/rea-elevenlabs-mcp.json), evidence `ev_d784ac8fc3e579c20ef445801a2693d65293301ca70020f2fc9481f918cd9145`. We reuse that timing principle through existing AudioBufferSource scheduling, without adding its hosted SDK or a custom worklet. One upcoming sentence can start on the sample clock before a delayed UI completion callback.
+
+Removed arbitrary 120-character speech cuts. Sentence context, embedded and punctuation-wrapped abbreviations, and Unicode boundaries are preserved within the existing 512-character service limit. The abbreviation lexicon is reused from Apache-2.0 Kokoro.js. The canvas displays Preparing voice before audio is ready.
+
+On this CPU, the same context passage took 8.892 seconds with q8 and 3.849 seconds with full precision (four threads), producing 10.525 and 10.475 seconds of finite audio respectively. The shorter sample took 4.160 versus 2.044 seconds. Full precision was faster here, so quantization was removed. These two measured samples do not predict every machine or establish subjective ElevenLabs equivalence. [Full precision](evidence/natural-voice/fp32-benchmark.json), [q8 baseline](evidence/natural-voice/q8-benchmark.json).
+
+2,000 permanent seeded property cases cover Unicode token normalization, bounded memory, measured text layout, and replaceable provider transport. They are generated cases, not 2,000 independent product features or exhaustive coverage. Before the fix, 500 failed because memory truncation split a surrogate pair; 1,500 passed. The minimal fix preserves a complete final character. [Red evidence](evidence/natural-voice/universal-2000-red.txt).
+
+The complete current unit suite passes 2,590 cases in 33 files, none skipped: statements 98.24%, branches 95.60%, functions 96.82%, lines 99.68%. All existing 95% floors remain enforced. [Current coverage](evidence/natural-voice/universal-coverage.txt). A real local teaching request returned HTTP 200 with `Hello!`; cloud model settings are connected. Local Mac settings are separate and must be loaded by the local app.
+
+Current browser validation: 44 production Chromium journeys passed, including the native audio-clock/UI-stall regression on desktop and phone. Current production container synthesis returned HTTP 200, finite 24 kHz audio lasting 3.075 seconds in a 2.211-second request, running nonroot with a read-only filesystem and telemetry disabled. These are real inference and playback-mechanics checks, not physical microphone certification.
+
+The first current mutation run honestly failed: 199 rejected, one survived, zero timeouts, 58 invalid excluded. Added an audio-device synchronous-pause failure assertion; it demonstrably fails with that surviving source mutation. No application behavior was weakened to make the test pass. The previous GitHub run had 199 rejected and one worker timeout; the bounded worker deadline is now 30 seconds instead of 15, with timeouts still failing release. The final full mutation rerun is recorded separately below.
+
+[Listen to the current production FP32 sample](evidence/natural-voice/teacher-fp32-sample.mp3). The dependency audit found zero vulnerabilities; all 86 release-infrastructure tests pass after the runner change.
+
+Final mutation rerun: 200 valid source mutations rejected, zero survivors, zero timeouts; 58 invalid mutations excluded. [Runner output](evidence/natural-voice/mutations-current-passed.txt), [per-mutation evidence](evidence/natural-voice/mutations-current-passed.json). Independent review found no critical or important issues in the final source, regression, or runner changes.

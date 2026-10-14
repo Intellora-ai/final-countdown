@@ -137,7 +137,7 @@ export function Canvas() {
     stopAudio(); setVoiceError(''); setSpeaking(true)
     const run = voiceRun.current
     const transcript = [lesson.explanation, lesson.check].filter(Boolean).join('\n')
-    setProgress(0)
+    setProgress(naturalVoice ? undefined : 0)
     const started = speak(transcript, () => {
       if (run !== voiceRun.current) return
       setSpeaking(false)
@@ -270,7 +270,7 @@ export function Canvas() {
           {voiceOn && (speaking || busy) && <button type="button" onClick={listen}>Interrupt</button>}
           {busy && !voiceOn ? <button type="button" onClick={cancelRequest}>Stop answer</button> : <button type="submit" disabled={busy || reading || !question.trim()}>Send</button>}
         </div></div>
-        {listening && <p role="status">Listening… pause when you finish.</p>}{speaking && <p role="status">Speaking…</p>}{busy && <p role="status">Working on your question…</p>}
+        {listening && <p role="status">Listening… pause when you finish.</p>}{speaking && <p role="status">{naturalVoice && progress === undefined ? 'Preparing voice…' : 'Speaking…'}</p>}{busy && <p role="status">Working on your question…</p>}
         {error && <p role="alert">{error}</p>}{voiceError && <p role="alert">{voiceError}</p>}{storageError && <p role="alert">{storageError}</p>}
       </form></div>
     </main>

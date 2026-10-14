@@ -8,7 +8,7 @@ import { clearPreparedVoice, prepareNaturalVoice, startNaturalSpeech } from '../
 
 let contexts: AudioGraph[], requests: { text: string; signal: AbortSignal }[]
 class AudioGraph {
-  state = 'suspended'; destination = {}; sources: AudioPiece[] = []
+  state = 'suspended'; currentTime = 10; destination = {}; sources: AudioPiece[] = []
   constructor() { contexts.push(this) }
   resume = async () => { this.state = 'running' }
   suspend = async () => { this.state = 'suspended' }
@@ -17,9 +17,9 @@ class AudioGraph {
   createBufferSource() { const source = new AudioPiece(); this.sources.push(source); return source }
 }
 class AudioPiece {
-  buffer: unknown; onended: (() => void) | null = null; playing = false
+  buffer: unknown; onended: (() => void) | null = null; playing = false; startAt = 0
   connect() {}
-  start() { this.playing = true }
+  start(when = 0) { this.startAt = when; this.playing = true }
   stop() { this.playing = false; this.onended?.() }
   end() { this.playing = false; this.onended?.() }
 }
@@ -30,6 +30,37 @@ beforeEach(() => {
     requests.push({ text: JSON.parse(options!.body as string).text, signal: options!.signal as AbortSignal })
     return new Response(new Uint8Array([1, 2, 3]), { headers: { 'Content-Type': 'audio/wav' } })
   }))
+})
+it('keeps a complete sentence and its abbreviation context instead of arbitrary short fragments', async () => {
+  const text = 'Dr. Rao measured 3.14 centimetres, and the measurements show that doubling the input changes the result in a predictable way that we can explain together.'
+  const playback = startNaturalSpeech(text)
+  await waitFor(() => expect(requests).not.toHaveLength(0))
+  expect(requests.map(request => request.text)).toEqual([text])
+  playback.stop()
+})
+it.each(['Dr.', 'Prof.', 'Mr.', 'Ms.'])('retains embedded title/name context for %s', async title => {
+  const text = `Please ask ${title} Rao about this result.`
+  const playback = startNaturalSpeech(text)
+  await waitFor(() => expect(requests).not.toHaveLength(0))
+  expect(requests.map(request => request.text)).toEqual([text]); playback.stop()
+})
+it.each([['(', ')'], ['“', '”'], ['[', ']']])('retains title context inside %s%s', async (open, close) => {
+  const text = `Please ask ${open}Dr. Rao${close} about this result.`
+  const playback = startNaturalSpeech(text)
+  await waitFor(() => expect(requests).not.toHaveLength(0))
+  expect(requests.map(request => request.text)).toEqual([text]); playback.stop()
+})
+it('schedules the ready next piece on the audio clock before the current completion callback', async () => {
+  const progress: number[] = [], done = vi.fn()
+  const playback = startNaturalSpeech('Consider this relationship. Compare another relationship.', done, undefined, index => progress.push(index))
+  await waitFor(() => expect(contexts[0].sources).toHaveLength(2))
+  expect(contexts[0].sources.map(source => source.startAt)).toEqual([10, 11])
+  expect(progress).toEqual([0]); expect(done).not.toHaveBeenCalled()
+  contexts[0].sources[0].end()
+  await waitFor(() => expect(progress).toEqual([0, 28]))
+  contexts[0].sources[1].end()
+  await waitFor(() => expect(done).toHaveBeenCalledOnce())
+  playback.stop()
 })
 afterEach(() => { cleanup(); clearPreparedVoice(); vi.useRealTimers(); vi.unstubAllGlobals() })
 it('reads the complete original text in bounded pieces and completes after the last audible piece', async () => {
@@ -63,13 +94,25 @@ it('interrupts immediately and rejects a late network response without playing i
 it('stops the current audio and ignores its queued completion while cancelling the prefetched piece', async () => {
   const done = vi.fn(), error = vi.fn()
   const playback = startNaturalSpeech('One clear sentence. Another follows it.', done, error)
-  await waitFor(() => expect(contexts[0].sources).toHaveLength(1))
+  await waitFor(() => expect(contexts[0].sources).toHaveLength(2))
   const source = contexts[0].sources[0], late = source.onended!
   expect(source.playing).toBe(true)
   playback.stop(); late()
   await new Promise(resolve => setTimeout(resolve, 0))
-  expect(source.playing).toBe(false); expect(requests.every(request => request.signal.aborted)).toBe(true)
+  expect(contexts[0].sources.every(piece => !piece.playing)).toBe(true); expect(requests.every(request => request.signal.aborted)).toBe(true)
   expect(done).not.toHaveBeenCalled(); expect(error).not.toHaveBeenCalled()
+})
+it.each(['A very long sentence, '.repeat(60), '😀'.repeat(600), 'x'.repeat(1300)])('preserves all oversized text within the real service limit without splitting surrogate pairs', async text => {
+  const playback = startNaturalSpeech(text)
+  for (let i = 0; i < 30; i++) {
+    await waitFor(() => expect(contexts[0].sources.length > i || contexts[0].state === 'closed').toBe(true))
+    if (contexts[0].state === 'closed') break
+    contexts[0].sources[i].end()
+  }
+  await waitFor(() => expect(contexts[0].state).toBe('closed'))
+  expect(requests.map(request => request.text).join('')).toBe(text)
+  expect(requests.every(request => request.text.length <= 512 && !/[\uD800-\uDBFF]$/.test(request.text))).toBe(true)
+  playback.stop()
 })
 it('pauses and resumes the same audio context without regenerating the voice', async () => {
   const playback = startNaturalSpeech('Keep this thought in view.')
@@ -129,6 +172,22 @@ it('preserves gesture-unlocked audio through complete Canvas conversation and in
   fireEvent.click(screen.getByRole('button', { name: 'End voice' }))
   expect(contexts[0].state).toBe('closed')
 })
+it('shows preparation rather than speaking/highlighting before the waveform is ready', async () => {
+  localStorage.clear()
+  localStorage.setItem('visual-canvas/v1', JSON.stringify([{ id: 'ready', question: 'An idea', lesson: { explanation: 'One clear concept.', blocks: [] } }]))
+  let finish!: (response: Response) => void
+  vi.stubGlobal('fetch', async (url: string) => url.endsWith('health')
+    ? Response.json({ modelConfigured: true, naturalVoice: true })
+    : new Promise<Response>(resolve => { finish = resolve }))
+  render(React.createElement(Canvas))
+  await waitFor(() => expect((screen.getByRole('combobox', { name: 'Voice' }) as HTMLSelectElement).value).toBe('natural'))
+  fireEvent.click(screen.getByRole('button', { name: 'Read aloud' }))
+  expect(screen.getByText('Preparing voice…')).toBeTruthy()
+  expect(screen.queryByLabelText('Voice caption')).toBeNull()
+  finish(new Response(new Uint8Array([1, 2, 3])))
+  await waitFor(() => expect(screen.getByText('Speaking…')).toBeTruthy())
+  expect(screen.getByLabelText('Voice caption').textContent).toContain('One clear concept')
+})
 it('reports blocked activation rather than remaining silently stuck', async () => {
   vi.useFakeTimers()
   class Blocked extends AudioGraph { resume = () => new Promise<void>(() => {}) }
@@ -163,4 +222,16 @@ it('reports decoder failure and never claims successful playback', async () => {
   const error = vi.fn(), done = vi.fn()
   startNaturalSpeech('Corrupt audio.', done, error)
   await waitFor(() => expect(error).toHaveBeenCalledOnce()); expect(done).not.toHaveBeenCalled()
+})
+
+it('reports a synchronous audio-device pause failure and cancels queued sound', async () => {
+  const done = vi.fn(), error = vi.fn()
+  const playback = startNaturalSpeech('Consider one idea. Compare another idea.', done, error)
+  await waitFor(() => expect(contexts[0].sources).toHaveLength(2))
+  vi.spyOn(contexts[0], 'suspend').mockImplementation(() => { throw new Error('Device disconnected') })
+  expect(playback.pause(true)).toBe(false)
+  expect(error).toHaveBeenCalledOnce()
+  expect(done).not.toHaveBeenCalled()
+  expect(contexts[0].sources.every(source => !source.playing)).toBe(true)
+  expect(playback.pause(false)).toBe(false)
 })

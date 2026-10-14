@@ -2,7 +2,9 @@ import type { Lesson } from './lesson'
 
 export const learnerKey = 'visual-canvas/learner'
 export function mergeMemory(current: string, replacement?: string) {
-  return replacement === undefined ? current : replacement.slice(0, 2000)
+  if (replacement === undefined) return current
+  const bounded = replacement.slice(0, 2000)
+  return /[\uD800-\uDBFF]$/.test(bounded) ? bounded.slice(0, -1) : bounded
 }
 export function readLearner() {
   try { return localStorage.getItem(learnerKey) ?? '' } catch { return '' }

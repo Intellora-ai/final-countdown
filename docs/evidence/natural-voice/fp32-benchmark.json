@@ -1,0 +1,22 @@
+[
+  {
+    "dtype": "fp32",
+    "threads": 4,
+    "name": "teacher",
+    "text": "Let us take one idea at a time. What changes when you double the input?",
+    "generationSeconds": 2.043588753,
+    "durationSeconds": 4.925,
+    "realTimeFactor": 0.4149418787817259,
+    "finite": true
+  },
+  {
+    "dtype": "fp32",
+    "threads": 4,
+    "name": "context",
+    "text": "Dr. Rao measured 3.14 centimetres, and the measurements show that doubling the input changes the result in a predictable way that we can explain together.",
+    "generationSeconds": 3.848747591000003,
+    "durationSeconds": 10.475,
+    "realTimeFactor": 0.36742220439140844,
+    "finite": true
+  }
+]

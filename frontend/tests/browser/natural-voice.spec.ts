@@ -64,3 +64,40 @@ test('reuses native gesture-unlocked audio across automatic replies and interrup
     return contexts.map(context => context.state)
   })).toEqual(['closed'])
 })
+test('native audio continues on its sample clock while the UI completion callback is blocked', async ({ page }) => {
+  await page.addInitScript(() => {
+    const records: { when: number; duration: number; queuedAt: number; callbackAt?: number }[] = []
+    const w = window as typeof window & { __waveClock: typeof records }
+    w.__waveClock = records
+    const Native = window.AudioContext
+    window.AudioContext = class extends Native {
+      createBufferSource() {
+        const source = super.createBufferSource(), start = source.start.bind(source), index = records.length
+        source.start = (...args) => {
+          records.push({ when: args[0] ?? this.currentTime, duration: source.buffer!.duration, queuedAt: this.currentTime })
+          start(...args)
+        }
+        source.addEventListener('ended', () => {
+          if (index === 0) { const until = performance.now() + 300; while (performance.now() < until) { /* deliberate UI stall */ } }
+          records[index].callbackAt = this.currentTime
+        })
+        return source
+      }
+    }
+  })
+  await page.route('**/api/lesson', route => route.fulfill({ json: { lesson: { explanation: 'The first idea stays together. Another clear idea follows.', blocks: [] } } }))
+  await page.reload()
+  await page.getByRole('button', { name: '+ New topic', exact: true }).click()
+  await page.getByRole('textbox', { name: 'Your question' }).fill('Explain the relationship')
+  await page.getByRole('button', { name: 'Send', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Read aloud', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Read aloud', exact: true }).click()
+  await page.waitForFunction(() => (window as typeof window & { __waveClock: unknown[] }).__waveClock.length === 2)
+  const initial = await page.evaluate(() => (window as typeof window & { __waveClock: { when: number; duration: number; queuedAt: number }[] }).__waveClock)
+  expect(initial[1].when).toBeCloseTo(initial[0].when + initial[0].duration, 6)
+  expect(initial[1].queuedAt).toBeLessThan(initial[1].when)
+  await expect(page.getByText('Speaking…', { exact: true })).toHaveCount(0, { timeout: 6000 })
+  const finished = await page.evaluate(() => (window as typeof window & { __waveClock: { when: number; duration: number; callbackAt: number }[] }).__waveClock)
+  expect(finished[0].callbackAt).toBeGreaterThan(finished[1].when + .15)
+  await expect(page.getByRole('alert')).toHaveCount(0)
+})

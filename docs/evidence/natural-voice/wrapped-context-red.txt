@@ -1,0 +1,82 @@
+
+ RUN  v5.0.3 /workspace/final-countdown/frontend
+
+ ❯ tests/natural-voice.test.ts (28 tests | 3 failed) 1326ms
+   × retains title context inside () 6ms
+   × retains title context inside “” 9ms
+   × retains title context inside [] 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/natural-voice.test.ts > retains title context inside ()
+AssertionError: expected [ 'Please ask (Dr. ', …(1) ] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+  [
+-   "Please ask (Dr. Rao) about this result.",
++   "Please ask (Dr. ",
++   "Rao) about this result.",
+  ]
+
+ ❯ tests/natural-voice.test.ts:51:49
+     49|   const playback = startNaturalSpeech(text)
+     50|   await waitFor(() => expect(requests).not.toHaveLength(0))
+     51|   expect(requests.map(request => request.text)).toEqual([text]); playb…
+       |                                                 ^
+     52| })
+     53| it('schedules the ready next piece on the audio clock before the curre…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/natural-voice.test.ts > retains title context inside “”
+AssertionError: expected [ 'Please ask “Dr. ', …(1) ] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+  [
+-   "Please ask “Dr. Rao” about this result.",
++   "Please ask “Dr. ",
++   "Rao” about this result.",
+  ]
+
+ ❯ tests/natural-voice.test.ts:51:49
+     49|   const playback = startNaturalSpeech(text)
+     50|   await waitFor(() => expect(requests).not.toHaveLength(0))
+     51|   expect(requests.map(request => request.text)).toEqual([text]); playb…
+       |                                                 ^
+     52| })
+     53| it('schedules the ready next piece on the audio clock before the curre…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/natural-voice.test.ts > retains title context inside []
+AssertionError: expected [ 'Please ask [Dr. ', …(1) ] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+  [
+-   "Please ask [Dr. Rao] about this result.",
++   "Please ask [Dr. ",
++   "Rao] about this result.",
+  ]
+
+ ❯ tests/natural-voice.test.ts:51:49
+     49|   const playback = startNaturalSpeech(text)
+     50|   await waitFor(() => expect(requests).not.toHaveLength(0))
+     51|   expect(requests.map(request => request.text)).toEqual([text]); playb…
+       |                                                 ^
+     52| })
+     53| it('schedules the ready next piece on the audio clock before the curre…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 25 passed (28)
+   Start at  06:35:46
+   Duration  2.26s (tests 61%, environment 26%, transform 8%, import 5%)
+

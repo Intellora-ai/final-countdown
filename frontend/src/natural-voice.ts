@@ -1,4 +1,6 @@
 // The browser plays local-model audio. Only one upcoming piece is prefetched.
+// Reuse Kokoro.js 1.2.1's Apache-2.0 abbreviation lexicon, not topic-specific rules.
+const abbreviations = new Set('mr mrs ms dr prof sr jr sgt col gen rep sen gov lt maj capt st mt etc co inc ltd dept vs p pg jan feb mar apr jun jul aug sep sept oct nov dec sun mon tu tue tues wed th thu thur thurs fri sat'.split(' '))
 let prepared: AudioContext | undefined
 export function prepareNaturalVoice() {
   if (prepared) return true
@@ -18,14 +20,33 @@ export function startNaturalSpeech(text: string, done?: () => void, error?: () =
   if (!Ctor) throw new Error('Audio unavailable')
   const context = prepared ?? new Ctor(), controller = new AbortController()
   const shared = context === prepared
-  const parts = [...new Intl.Segmenter(undefined, { granularity: 'sentence' }).segment(text)].flatMap(sentence =>
-    [...sentence.segment.matchAll(/[\s\S]{1,120}(?:\s|$)|[\s\S]{1,120}/gu)].map(match => ({ text: match[0], index: sentence.index + match.index })))
-  let active = true, source: AudioBufferSourceNode | undefined, finishPiece: (() => void) | undefined
+  const sentences = [...new Intl.Segmenter(undefined, { granularity: 'sentence' }).segment(text)]
+  const parts: { text: string; index: number }[] = []
+  for (let i = 0; i < sentences.length; i++) {
+    let segment = sentences[i].segment, index = sentences[i].index
+    while (i + 1 < sentences.length) {
+      const last = segment.trimEnd().split(/\s+/u).at(-1)!.replace(/^[^\p{L}\p{N}]+/u, '').replace(/[^\p{L}\p{N}.]+$/u, '')
+      if (!abbreviations.has(last.replace(/['’]s$/i, '').replace(/\.+$/, '').toLowerCase()) && !/^(?:[A-Za-z]\.)+$/u.test(last)) break
+      segment += sentences[++i].segment
+    }
+    while (segment.length > 512) {
+      const prefix = segment.slice(0, 512)
+      const boundary = [...prefix.matchAll(/[,;:]\s|\s/gu)].at(-1)
+      const end = boundary ? boundary.index + boundary[0].length : /[\uD800-\uDBFF]$/.test(prefix) ? 511 : 512
+      parts.push({ text: segment.slice(0, end), index }); segment = segment.slice(end); index += end
+    }
+    if (segment) parts.push({ text: segment, index })
+  }
+  let active = true
+  const sources = new Map<AudioBufferSourceNode, () => void>()
   const stop = () => {
     if (!active) return
     active = false; controller.abort()
-    if (source) { source.onended = null; try { source.stop() } catch { /* Already ended. */ } }
-    finishPiece?.(); if (!shared) void context.close().catch(() => {})
+    for (const [source, finish] of sources) {
+      source.onended = null; try { source.stop() } catch { /* Already ended. */ }
+      finish()
+    }
+    if (!shared) void context.close().catch(() => {})
   }
   const fail = () => { if (active) { stop(); error?.() } }
   const audio = async (part: typeof parts[number]) => {
@@ -55,17 +76,25 @@ export function startNaturalSpeech(text: string, done?: () => void, error?: () =
   let pending = audio(parts[0]); void pending.catch(() => {})
   void (async () => {
     await unlocked
+    let previous = Promise.resolve(), cursor = context.currentTime
     for (let i = 0; i < parts.length; i++) {
       const buffer = await pending
       if (!active) return
-      if (i + 1 < parts.length) { pending = audio(parts[i + 1]); void pending.catch(() => {}) }
-      source = context.createBufferSource(); source.buffer = buffer; source.connect(context.destination)
-      await new Promise<void>(resolve => {
-        finishPiece = resolve; source!.onended = () => resolve()
-        source!.start(); progress?.(parts[i].index)
+      const source = context.createBufferSource(); source.buffer = buffer; source.connect(context.destination)
+      const ended = new Promise<void>(resolve => {
+        const finish = () => { sources.delete(source); resolve() }
+        sources.set(source, finish); source.onended = finish
       })
+      const when = Math.max(context.currentTime, cursor)
+      cursor = when + buffer.duration; source.start(when)
+      // Audio continues on its sample clock even if the UI thread is busy.
+      await previous
       if (!active) return
+      progress?.(parts[i].index); previous = ended
+      if (i + 1 < parts.length) { pending = audio(parts[i + 1]); void pending.catch(() => {}) }
     }
+    await previous
+    if (!active) return
     stop(); done?.()
   })().catch(fail)
   return { stop, pause(paused: boolean) {

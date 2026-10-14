@@ -1,0 +1,33 @@
+
+ RUN  v5.0.3 /workspace/final-countdown/frontend
+
+ ❯ tests/natural-voice.test.ts (29 tests | 1 failed) 1367ms
+   × reports a synchronous audio-device pause failure and cancels queued sound 56ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/natural-voice.test.ts > reports a synchronous audio-device pause failure and cancels queued sound
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/natural-voice.test.ts:232:32
+    230|   await waitFor(() => expect(contexts[0].sources).toHaveLength(2))
+    231|   vi.spyOn(contexts[0], 'suspend').mockImplementation(() => { throw ne…
+    232|   expect(playback.pause(true)).toBe(false)
+       |                                ^
+    233|   expect(error).toHaveBeenCalledOnce()
+    234|   expect(done).not.toHaveBeenCalled()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 28 passed (29)
+   Start at  06:47:36
+   Duration  2.26s (tests 63%, environment 24%, transform 7%, import 5%)
+

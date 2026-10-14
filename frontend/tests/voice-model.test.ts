@@ -17,7 +17,7 @@ it('disables unnecessary runtime telemetry before loading the speech model', asy
 it('uses immutable CPU weights and returns generated waveform bytes for arbitrary text', async () => {
   const { generateSpeech, VOICE_MODEL, VOICE_REVISION } = await import('../server/voice-model')
   expect(await generateSpeech('A new subject, Δ and 3.14.', new AbortController().signal)).toEqual(Buffer.from('RIFF'))
-  expect(boundary.load).toHaveBeenCalledWith(VOICE_MODEL, expect.objectContaining({ revision: VOICE_REVISION, device: 'cpu', dtype: 'q8' }))
+  expect(boundary.load).toHaveBeenCalledWith(VOICE_MODEL, expect.objectContaining({ revision: VOICE_REVISION, device: 'cpu', dtype: 'fp32' }))
   expect(boundary.generate).toHaveBeenCalledWith('A new subject, Δ and 3.14.', { voice: 'af_heart' })
   await generateSpeech('Another topic.', new AbortController().signal)
   expect(boundary.load).toHaveBeenCalledOnce()

@@ -1,0 +1,22 @@
+[
+  {
+    "dtype": "q8",
+    "threads": 4,
+    "name": "teacher",
+    "text": "Let us take one idea at a time. What changes when you double the input?",
+    "generationSeconds": 4.159531202,
+    "durationSeconds": 4.825,
+    "realTimeFactor": 0.8620790055958549,
+    "finite": true
+  },
+  {
+    "dtype": "q8",
+    "threads": 4,
+    "name": "context",
+    "text": "Dr. Rao measured 3.14 centimetres, and the measurements show that doubling the input changes the result in a predictable way that we can explain together.",
+    "generationSeconds": 8.891507338,
+    "durationSeconds": 10.525,
+    "realTimeFactor": 0.8447987969596199,
+    "finite": true
+  }
+]

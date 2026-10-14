@@ -1,0 +1,12 @@
+{
+  "provider": "Groq",
+  "model": "openai/gpt-oss-120b",
+  "status": 200,
+  "requestSeconds": 0.726537,
+  "response": {
+    "lesson": {
+      "explanation": "A shadow changes length because the Sun\u2019s position in the sky moves as Earth rotates, altering the angle at which sunlight strikes objects. When the Sun is low in the sky (morning or evening) the angle is shallow, creating a long shadow, while a higher Sun (midday) casts a shorter shadow.",
+      "blocks": []
+    }
+  }
+}

@@ -6,3 +6,4 @@ it('preserves dark ink and darkens pale colors for paper', () => {
   expect(paperInk('#9cd8ff')).not.toBe('#9cd8ff')
   expect(paperInk('#000000')).toBe('#000000')
 })
+it.each(['#xyzxyz', '#fff', 'currentColor', 'var(--ink)'])('does not corrupt unrecognized color notation %s', color => expect(paperInk(color)).toBe(color))

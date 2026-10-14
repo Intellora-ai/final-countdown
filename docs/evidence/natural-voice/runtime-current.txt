@@ -1,0 +1,5 @@
+
+> visual-learning-canvas@1.0.0 test:production
+> node scripts/check-production.mjs
+
+Production checks passed: authentication, UTF-8 request, JSON mode, output cap, headers, persistent quota, fail-closed startup and graceful shutdown. Provider was a local fixture.

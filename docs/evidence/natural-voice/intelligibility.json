@@ -1,0 +1,23 @@
+[
+  {
+    "voice": "kokoro",
+    "reference": "Let us take one idea at a time. What changes when you double the input?",
+    "transcription": " Let us take one idea at a time. What changes when you double the input?",
+    "wordErrorRate": 0.0,
+    "evaluationSeconds": 1.2019852649973473
+  },
+  {
+    "voice": "nano",
+    "reference": "Let us take one idea at a time. What changes when you double the input?",
+    "transcription": " Let us take one idea at a time. What changes when you double the input?",
+    "wordErrorRate": 0.0,
+    "evaluationSeconds": 1.0687317399970198
+  },
+  {
+    "voice": "expressive",
+    "reference": "That is a good question. Let's look at it together. What do you notice first?",
+    "transcription": " That is a good question. Let's look at it together. What do you notice first?",
+    "wordErrorRate": 0.0,
+    "evaluationSeconds": 1.034399513999233
+  }
+]

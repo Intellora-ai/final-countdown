@@ -30,9 +30,9 @@ test('general drawing fits, zooms, exports and is revised with complete context'
   })).toBe(true)
   await expect(drawing.locator('path')).toHaveCount(3)
   await page.getByRole('button', { name: 'Zoom in' }).click()
-  await expect(page.getByText('125%', { exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Answer canvas' }).getByText('125%', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Fit', exact: true }).click()
-  await expect(page.getByText('100%', { exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Answer canvas' }).getByText('100%', { exact: true })).toBeVisible()
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Save SVG' }).click()
   const download = await downloadPromise
@@ -93,7 +93,7 @@ test('equations, exact polygons and automatic connected diagrams render together
 })
 
 test('general SVG artwork loads, zooms and exports without external requests', async ({ page }) => {
-  const source = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400"><defs><linearGradient id="ink"><stop offset="0" stop-color="#93d6ff"/><stop offset="1" stop-color="#ffd080"/></linearGradient></defs><g transform="translate(50 40)"><path d="M0 150 C80 -40 250 280 400 80" stroke="url(#ink)" stroke-width="8" fill="none"/><text x="30" y="270" fill="#ffffff" font-size="32">Free composition</text></g><image href="https://outside.test/a"/><script>alert(1)</script></svg>'
+  const source = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400"><defs><linearGradient id="paint:é光"><stop offset="0" stop-color="#93d6ff"/><stop offset="1" stop-color="#ffd080"/></linearGradient><symbol id="shape:é光" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="url(#paint:é光)"/></symbol></defs><g transform="translate(50 40)"><path d="M0 150 C80 -40 250 280 400 80" stroke="url(#paint:é光)" stroke-width="8" fill="none"/><use href="#shape:é光" x="460" width="40" height="40"/><text x="30" y="270" fill="#ffffff" font-size="32">Free composition</text></g><image href="https://outside.test/a"/><script>alert(1)</script></svg>'
   await page.route('**/api/health', route => route.fulfill({ json: { modelConfigured: true } }))
   await page.route('**/api/lesson', route => route.fulfill({ json: { lesson: { explanation: 'A freely composed drawing.', blocks: [{ kind: 'svg', title: 'Artwork', source }] } } }))
   const external: string[] = []; page.on('request', request => { if (request.url().includes('outside.test')) external.push(request.url()) })
@@ -104,13 +104,24 @@ test('general SVG artwork loads, zooms and exports without external requests', a
   await expect(artwork).toBeVisible()
   await expect.poll(() => artwork.evaluate(img => (img as HTMLImageElement).naturalWidth)).toBe(600)
   await page.getByRole('button', { name: 'Zoom in' }).click()
-  await expect(page.getByText('125%', { exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Answer canvas' }).getByText('125%', { exact: true })).toBeVisible()
   const pending = page.waitForEvent('download')
   await page.getByRole('link', { name: 'Save SVG' }).click()
   const file = await (await pending).createReadStream()
   const chunks: Buffer[] = []; for await (const chunk of file!) chunks.push(Buffer.from(chunk))
   const exported = Buffer.concat(chunks).toString()
   expect(exported).toContain('linearGradient'); expect(exported).toContain('Free composition')
+  const references = await page.evaluate(source => {
+    const doc = new DOMParser().parseFromString(source, 'image/svg+xml')
+    return {
+      gradient: doc.querySelector('linearGradient')!.id,
+      paint: doc.querySelector('path')!.getAttribute('stroke'),
+      symbol: doc.querySelector('symbol')!.id,
+      reuse: doc.querySelector('use')!.getAttribute('href'),
+    }
+  }, exported)
+  expect(references.paint).toBe(`url(#${references.gradient})`)
+  expect(references.reuse).toBe(`#${references.symbol}`)
   expect(exported).not.toMatch(/script|outside\.test|<image/)
   expect(external).toEqual([])
   await page.reload()
@@ -151,7 +162,7 @@ test('plain conversation is handwritten on the answer canvas without chat paragr
   await expect(board.locator('p:not(.sr-only)')).toHaveCount(0)
   await expect(board.getByRole('button')).toHaveCount(0)
   await page.evaluate(() => document.fonts.ready)
-  expect(await board.locator('svg').evaluate(svg => (svg as SVGSVGElement).viewBox.baseVal.width)).toBeLessThanOrEqual(850)
+  expect(await board.locator('svg').evaluate(svg => Math.abs((svg as SVGSVGElement).viewBox.baseVal.width - svg.parentElement!.clientWidth))).toBeLessThanOrEqual(1)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: testInfo.outputPath('canvas-only-writing.png'), fullPage: true })
 })

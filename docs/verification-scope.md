@@ -8,8 +8,8 @@ Python and GitHub Actions with CodeQL.
 
 | Retained component | Verified behavior | Release scope |
 | --- | --- | --- |
-| frontend | 150 unit tests, 20 browser checks, production/container smoke and deliberate fault detection | Canvas release |
-| ci | 22 adversarial workflow/evidence/verdict/annotation tests and actionlint | Canvas release |
+| frontend | 514 tests in 28 files; 100% measured lines with all four coverage floors at 95%; 32 production browser checks plus 2 development checks, production/container smoke and 200 source-mutation campaign | Canvas release |
+| ci | 86 adversarial workflow/evidence/verdict/annotation tests, native coverage publishing and actionlint | Canvas release |
 
 ## Retired systems
 
@@ -38,12 +38,19 @@ Physical microphone/speaker behavior and real provider teaching quality/quotas
 need live testing. Scanners cannot detect every bug and passing tests do not
 prove every line's behavior correct.
 
-The branch ruleset remains disabled. Updating it through this connection returns
+The branch ruleset is active, requires `release-gate` from GitHub Actions and has
+no bypass actors. Updating it through this connection still returns
 HTTP 403 `Resource not accessible by integration`. Repository administration
-access must activate an up-to-date ruleset requiring GitHub Actions `release-gate`
-with no bypasses. A workflow cannot grant itself administration permission.
-Until then, successful checks do not establish mandatory merge enforcement.
+access is needed for administration changes. The 95% coverage rule is retained;
+CI produces matching Cobertura line evidence and attempts native publishing.
+The observed uploads at `8cf036b` and `02edbde` returned HTTP 404, so no accepted native report
+is claimed and the final gate stays blocked. Feature availability and the
+remaining Bandit/code-quality requirements must be verified separately. A
+workflow cannot grant itself administration permission.
+
+The [visual verification record](canvas-visual-verification.md) distinguishes
+renderer/browser evidence from real model failures and the public Studdy reference.
 
 A permanent gate test first failed when an extra `.yaml` workflow escaped the
 integrity checker. The checker now examines both GitHub-supported YAML extensions;
-all 22 gate tests pass after the fix.
+the current gate suite preserves that regression alongside evidence and command-integrity checks.

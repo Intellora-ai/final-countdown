@@ -1,0 +1,9 @@
+{
+  "sample": "warm",
+  "text": "Let us take one idea at a time. What changes when you double the input?",
+  "generationSeconds": 6.16394068000227,
+  "durationSeconds": 4.24,
+  "realTimeFactor": 1.453759594340158,
+  "threads": 4,
+  "finite": true
+}

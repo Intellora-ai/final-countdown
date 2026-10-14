@@ -32,7 +32,7 @@ function Draw({ element }: { element: Element }) {
       {axisY >= element.y && axisY <= element.y + element.height && <line x1={element.x} y1={axisY} x2={element.x + element.width} y2={axisY} stroke="var(--muted)" />}
       <Label x={element.x} y={element.y - 14} label={`y = ${element.expression}`} width={element.width} size={24} color={color} />
       <Label x={element.x} y={element.y + element.height + 28} label={`${element.xMin} ≤ x ≤ ${element.xMax}; ${element.yMin} ≤ y ≤ ${element.yMax}`} width={element.width} size={20} />
-      {d ? <path d={d} {...stroke} fill="none" /> : <Label x={element.x + 12} y={element.y + 36} label="No defined points in this range" width={element.width - 24} size={22} />}
+      {d ? <path d={d} {...stroke} fill="none" /> : <Label x={element.x + 12} y={element.y + 36} label="No curve could be drawn in this range" width={element.width - 24} size={22} />}
     </g>
   }
   if (element.type === 'rect' || element.type === 'circle') {

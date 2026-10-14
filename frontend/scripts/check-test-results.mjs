@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { execFileSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 const report = JSON.parse(await readFile('test-results/unit.json', 'utf8'))
+const contract = JSON.parse(await readFile('../ci/release-gates.json', 'utf8'))
 assert.equal(report.success, true, 'Test runner did not report success.')
-assert.ok(report.numTotalTests >= 147, 'Test deletion or empty collection: expected at least the established suite.')
+assert.ok(report.numTotalTests >= contract.test_floors.tests, 'Test deletion or empty collection: expected at least the established suite.')
 assert.equal(report.numPassedTests, report.numTotalTests, 'Failed, skipped or pending tests cannot authorize a release.')
 assert.equal(report.numFailedTests, 0)
 assert.equal(report.numPendingTests, 0)
 assert.equal(report.numTodoTests ?? 0, 0)
-assert.ok(report.testResults.length >= 16, 'Missing test suites.')
+assert.ok(report.testResults.length >= contract.test_floors.files, 'Missing test suites.')
 console.log(`Verified ${report.numPassedTests} assertions in ${report.testResults.length} test files; none skipped.`)
 const assertions = report.testResults.flatMap(file => file.assertionResults ?? [])
 assert.equal(assertions.length, report.numTotalTests, 'Summary counts do not match actual assertions.')
@@ -17,8 +20,7 @@ const { resolve } = await import('node:path')
 const expectedTests = (await readdir('tests', { recursive: true })).filter(file => /\.test\.tsx?$/.test(file)).map(file => resolve('tests', file))
 assert.deepEqual(new Set(report.testResults.map(file => file.name)), new Set(expectedTests), 'A discovered test file was omitted.')
 const summary = JSON.parse(await readFile('coverage/coverage-summary.json', 'utf8'))
-const contract = JSON.parse(await readFile('../ci/release-gates.json', 'utf8'))
-for (const [metric, minimum] of Object.entries(contract.coverage_floors)) assert.ok(summary.total[metric].pct >= minimum, `${metric} coverage regressed below ${minimum}%.`)
 const sources = (await Promise.all(['src', 'server'].map(async dir => (await readdir(dir, { recursive: true })).filter(file => /\.tsx?$/.test(file) && !file.endsWith('.d.ts')).map(file => resolve(dir, file))))).flat()
 assert.deepEqual(new Set(Object.keys(summary).filter(key => key !== 'total' && !key.endsWith('.d.ts'))), new Set(sources), 'Application files were excluded from coverage.')
+execFileSync('python3', [fileURLToPath(new URL('../../ci/check_coverage.py', import.meta.url))], { stdio: 'inherit' })
 console.log('Full application coverage scope and regression floors verified; production/browser coverage is separate.')

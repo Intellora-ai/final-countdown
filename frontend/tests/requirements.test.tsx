@@ -73,7 +73,10 @@ it('does not overwrite saved work with an answer cancelled by New topic', async 
   fireEvent.click(screen.getByRole('button', { name: /New topic/ }))
   finish(Response.json({ lesson }))
   await new Promise(resolve => setTimeout(resolve, 0))
-  expect(screen.getByRole('heading', { name: /What do you want/ })).toBeTruthy()
+  expect(screen.getByRole('region', { name: 'Blank canvas' }).textContent).toBe('')
+  expect(screen.queryByRole('region', { name: 'Answer canvas' })).toBeNull()
+  expect((screen.getByLabelText('Your question') as HTMLTextAreaElement).value).toBe('')
+  expect((screen.getByRole('button', { name: 'Send' }) as HTMLButtonElement).disabled).toBe(true)
   expect(JSON.parse(localStorage.getItem('visual-canvas/v1')!)).toHaveLength(1)
 })
 it('bounds UTF-8 context while retaining the latest text from an oversized visual', async () => {

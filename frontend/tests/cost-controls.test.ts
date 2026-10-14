@@ -25,6 +25,21 @@ it('deduplicates selected context and explicitly identifies oversized omitted ge
   expect(result.turns[0].lesson.blocks).toEqual([])
   expect(result.geometryOmitted).toBe(true)
 })
+it('keeps the topic and explanation when compacting older or oversized boards without inventing absent titles', () => {
+  for (const title of ['Before and after', '速度の変化', undefined]) {
+    const prior = { ...drawing('First explanation'), ...(title ? { title } : {}) }
+    const latest = drawing('Latest explanation')
+    const input = [{ question: 'First question', lesson: prior }, { question: 'Next question', lesson: latest }]
+    const snapshots = JSON.stringify(input)
+    const compact = compactContext(input)
+    expect(compact.turns[0].lesson).toEqual({ ...(title ? { title } : {}), explanation: prior.explanation, blocks: [] })
+    expect(compact.turns[1].lesson).toEqual(latest)
+    const oversized = compactContext([{ question: 'First question', lesson: prior }], undefined, 300)
+    expect(oversized.turns[0].lesson).toEqual({ ...(title ? { title } : {}), explanation: prior.explanation, blocks: [] })
+    expect(oversized.geometryOmitted).toBe(true)
+    expect(JSON.stringify(input)).toBe(snapshots)
+  }
+})
 it('uses a small JSON contract and a bounded output without automatic retries', async () => {
   const calls: RequestInit[] = []
   const send = async (_url: unknown, init?: RequestInit) => { calls.push(init!); return Response.json({ choices: [{ message: { content: '{"explanation":"Hi!"}' } }] }) }
@@ -58,6 +73,26 @@ it('bounds concurrency, allows release once, and bounds burst requests', () => {
   if ('release' in next) next.release()
   expect('retry' in budget.acquire()).toBe(true)
 })
+it('a repeated release cannot grant extra simultaneous requests', () => {
+  const budget = new RequestBudget({ concurrent: 1, burst: 10 })
+  const first = budget.acquire()
+  if (!('release' in first)) throw new Error('First request was denied')
+  first.release(); first.release()
+  const second = budget.acquire()
+  expect('release' in second).toBe(true)
+  expect('retry' in budget.acquire()).toBe(true)
+  if ('release' in second) second.release()
+})
+it('burst capacity returns after the rolling minute without waiting for tomorrow', () => {
+  let now = Date.parse('2026-10-12T10:00:00Z')
+  const budget = new RequestBudget({ burst: 1, clock: () => now })
+  const first = budget.acquire()
+  if ('release' in first) first.release()
+  now += 59999
+  expect('retry' in budget.acquire()).toBe(true)
+  now += 1
+  expect('release' in budget.acquire()).toBe(true)
+})
 it('retains a daily budget across restarts and renews on the next UTC day', () => {
   const dir = mkdtempSync(join(tmpdir(), 'canvas-budget-')); directories.push(dir)
   const file = join(dir, 'budget.json'); let now = Date.parse('2026-10-11T12:00:00Z')
@@ -73,6 +108,8 @@ it('transmits learner context, file excerpts and photos through the configured m
  const send = async (_url: unknown, init?: RequestInit) => { payload=JSON.parse(init!.body as string);return Response.json({choices:[{message:{content:JSON.stringify({explanation:'A tailored answer',learner:'Learning algebra',blocks:[]})}}]}) }
  const result=await generateLesson({question:'Explain',learner:'Prefers diagrams',recall:'Struggled with fractions',attachments:[{name:'notes.txt',text:'Evidence'},{name:'photo.jpg',image:'data:image/jpeg;base64,YQ=='}]}, {url:'https://provider.test/chat',model:'replaceable',format:'json_object'},send as typeof fetch)
  expect(result.learner).toBe('Learning algebra');expect(payload.messages.at(-1).content[0].text).toContain('Struggled with fractions');expect(payload.messages.at(-1).content[1].image_url.url).toBe('data:image/jpeg;base64,YQ==')
+ expect(JSON.parse(payload.messages.at(-1).content[0].text).documents).toEqual([{name:'notes.txt',excerpt:'Evidence'}])
+ expect(payload.messages.at(-1).content).toHaveLength(2)
 })
 it('does not expose disabled learner memory even if a client includes it',async()=>{
  let payload:any;const send=async(_url:unknown,init?:RequestInit)=>{payload=JSON.parse(init!.body as string);return Response.json({choices:[{message:{content:'{"explanation":"Hello"}'}}]})}

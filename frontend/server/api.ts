@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { speech } from './speech.ts'
 import { compactContext } from './context.ts'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import { lessonInstructions, modelLessonSchema, requestSchema, MAX_REQUEST_BYTES } from '../src/lesson.ts'
@@ -12,6 +13,22 @@ export function modelConfig(env: Record<string, string | undefined> = process.en
   const maxTokens = Number(env.LESSON_MAX_TOKENS ?? 4096)
   if (!Number.isInteger(maxTokens) || maxTokens < 256 || maxTokens > 8192) throw new Error('LESSON_MAX_TOKENS must be between 256 and 8192.')
   return { url: env.LESSON_API_URL, model: env.LESSON_MODEL, key: env.LESSON_API_KEY, format: env.LESSON_RESPONSE_FORMAT === 'json_object' ? 'json_object' : 'json_schema', maxTokens }
+}
+async function readModelResponse(response: Response) {
+  if (!response.body) throw new Error('MODEL_OUTPUT_INVALID')
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []; let bytes = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      bytes += value.byteLength
+      if (bytes > MAX_REQUEST_BYTES) { await reader.cancel(); throw new Error('MODEL_OUTPUT_TOO_LARGE') }
+      chunks.push(value)
+    }
+  } finally { reader.releaseLock() }
+  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')) }
+  catch { throw new Error('MODEL_OUTPUT_INVALID') }
 }
 export async function generateLesson(input: unknown, config: ModelConfig, send: typeof fetch = fetch, signal?: AbortSignal) {
   const request = requestSchema.parse(input)
@@ -44,10 +61,10 @@ export async function generateLesson(input: unknown, config: ModelConfig, send: 
     }),
   })
   if (!response.ok) throw new Error(`MODEL_HTTP_${response.status}`)
-  const payload = await response.json() as { choices?: { finish_reason?: string; message?: { content?: string } }[] }
-  if (payload.choices?.[0]?.finish_reason === 'length') throw new Error('MODEL_OUTPUT_TRUNCATED')
-  const content = payload.choices?.[0]?.message?.content
-  if (!content) throw new Error('MODEL_OUTPUT_INVALID')
+  const payload = await readModelResponse(response) as { choices?: { finish_reason?: string; message?: { content?: string } }[] } | null
+  if (payload?.choices?.[0]?.finish_reason === 'length') throw new Error('MODEL_OUTPUT_TRUNCATED')
+  const content = payload?.choices?.[0]?.message?.content
+  if (typeof content !== 'string' || !content) throw new Error('MODEL_OUTPUT_INVALID')
   try { return modelLessonSchema.parse(JSON.parse(content)) }
   catch { throw new Error('MODEL_OUTPUT_INVALID') }
 }
@@ -58,8 +75,8 @@ function json(res: ServerResponse, status: number, value: unknown) {
 }
 export async function api(req: IncomingMessage, res: ServerResponse, config = modelConfig()) {
   const path = (req.url ?? '').split('?')[0]
-  if (path === '/api/health' && req.method === 'GET') {
-    json(res, 200, { ok: true, modelConfigured: Boolean(config.url && config.model) }); return
+  if (path === '/api/health' && (req.method === 'GET' || req.method === 'HEAD')) {
+    json(res, 200, { ok: true, modelConfigured: Boolean(config.url && config.model), naturalVoice: true }); return
   }
   // Browser requests stay on the same origin. No cross-origin API access.
   if (req.headers.origin) {
@@ -69,6 +86,7 @@ export async function api(req: IncomingMessage, res: ServerResponse, config = mo
       }
     } catch { json(res, 403, { error: 'Invalid origin.' }); return }
   }
+  if (path === '/api/speech' && req.method === 'POST') { await speech(req, res); return }
   if (path !== '/api/lesson' || req.method !== 'POST') {
     json(res, 404, { error: 'Unknown API route.' }); return
   }
@@ -100,6 +118,7 @@ export async function api(req: IncomingMessage, res: ServerResponse, config = mo
       ? 'Teaching is not connected yet. Ask the person running this canvas to connect a model. Saved lessons still open.'
       : timedOut ? 'The model took too long to answer. Try a smaller drawing or a faster model.'
       : message === 'MODEL_OUTPUT_TRUNCATED' ? 'The drawing exceeded the answer budget. Ask for a smaller board or raise the server output limit.'
+      : message === 'MODEL_OUTPUT_TOO_LARGE' ? 'The model response was too large. Ask for a smaller board.'
       : message === 'MODEL_OUTPUT_INVALID' ? 'The model returned an invalid visual lesson. Try asking again.'
       : message === 'MODEL_HTTP_404' ? 'The configured model or API endpoint is unavailable. Check the endpoint and model name on the server.'
       : message.startsWith('MODEL_HTTP_') ? `The model service rejected the request (HTTP ${message.slice(11)}). Check the server connection and quota.`

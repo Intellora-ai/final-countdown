@@ -1,5 +1,13 @@
 # Blackboard verification
 
+This is the historical rebuild record. The current release audit and commands
+are in [release instructions](RELEASE.md) and [verification scope](../docs/verification-scope.md).
+
+The later [13 October visual verification](../docs/canvas-visual-verification.md)
+supersedes the historical dark artwork surface and hidden SVG-only transcript:
+current boards use paper, always display complete handwritten prose, embed the
+existing font in artwork, and calculate optional curves and zero axes locally.
+
 This record describes the rebuilt board and the preceding cancellation/context
 fixes. Baseline: commit `9027aa9`. These are observed checks, not a claim of
 universal correctness or human-quality voice.

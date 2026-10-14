@@ -1,0 +1,14 @@
+{
+  "model": "ResembleAI/chatterbox-nano",
+  "revision": "71ccd1d0081b430592cea481f4307e764e07bc64",
+  "sampleRate": 24000,
+  "durationSeconds": 3.84,
+  "loadSeconds": 4.123718414997711,
+  "generationSeconds": 5.915324440000404,
+  "realTimeFactor": 1.540449072916772,
+  "finite": true,
+  "peak": 0.4388009309768677,
+  "text": "Let us take one idea at a time. What changes when you double the input?",
+  "device": "cpu",
+  "threads": 4
+}

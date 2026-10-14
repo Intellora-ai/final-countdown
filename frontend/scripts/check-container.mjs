@@ -19,6 +19,9 @@ try {
   const port = JSON.parse(docker('inspect', name))[0].NetworkSettings.Ports['8787/tcp'][0].HostPort
   base = 'http://127.0.0.1:' + port
   await ready()
+  const health = await fetch(base + '/api/health')
+  assert.equal(health.status, 200)
+  assert.deepEqual(await health.json(), { ok: true })
   assert.equal(docker('inspect', '--format', '{{.Config.User}}', name), 'node')
   assert.equal((await fetch(base)).status, 401)
   const ui = await fetch(base, { headers }); assert.equal(ui.status, 200)

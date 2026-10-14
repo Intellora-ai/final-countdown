@@ -1,0 +1,18 @@
+{
+  "mockedSpeech": false,
+  "fakeDevices": false,
+  "speech": {
+    "alerts": [
+      "Audio playback failed. You can read the answer or try Read aloud again."
+    ],
+    "recovered": true,
+    "speaking": 0
+  },
+  "microphone": {
+    "alerts": [
+      "Microphone input failed. Check browser microphone permission, or type your question."
+    ],
+    "recovered": true,
+    "listening": 0
+  }
+}

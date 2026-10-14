@@ -5,6 +5,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+env:
+  # CPU libraries ship with the package; unused CUDA providers are unnecessary.
+  ONNXRUNTIME_NODE_INSTALL: skip
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: true
@@ -23,15 +26,19 @@ jobs:
       - run: python3 ci/check_workflows.py
       - run: python3 -m unittest discover -s ci/tests
       - run: python3 ci/install_actionlint.py
-      - run: .ci-tools/actionlint -color
+      # Latest actionlint 1.7.12 predates GitHub's documented code-quality permission.
+      # check_workflows.py independently enforces its exact coverage-only grant.
+      - run: .ci-tools/actionlint -color -ignore '^unknown permission scope "code-quality"\.'
   core:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version-file: frontend/.nvmrc
@@ -50,7 +57,32 @@ jobs:
           path: |
             frontend/test-results/unit.json
             frontend/coverage/coverage-summary.json
+            frontend/coverage/cobertura-coverage.xml
+            frontend/test-results/mutations.json
           retention-days: 7
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [core]
+    permissions:
+      contents: read
+      code-quality: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: unit-and-coverage
+          path: coverage-evidence
+      - uses: actions/upload-code-coverage@2b21a77928be8d5168c2b9581a67f2adbebacc52 # v1.4.4
+        with:
+          file: coverage-evidence/coverage/cobertura-coverage.xml
+          language: TypeScript
+          label: code-coverage/vitest
+          fail-on-error: true
+          wait-for-processing-timeout: 160
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -110,7 +142,7 @@ jobs:
   release-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    needs: [integrity, core, browser, container, security]
+    needs: [integrity, core, browser, container, security, coverage]
     if: always()
     env:
       NEEDS_JSON: ${{ toJSON(needs) }}

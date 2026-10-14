@@ -8,7 +8,6 @@ export function validPath(source: string) {
   let index = 0
   while (index < tokens.length) {
     const command = tokens[index++].toUpperCase()
-    if (!(command in arity)) return false
     const numbers: number[] = []
     while (index < tokens.length && !/^[a-z]$/i.test(tokens[index])) numbers.push(Number(tokens[index++]))
     const size = arity[command]
@@ -23,18 +22,42 @@ export function validPath(source: string) {
 export type Plot = { expression: string; x: number; y: number; width: number; height: number; xMin: number; xMax: number; yMin: number; yMax: number }
 export function plotPath(plot: Plot) {
   const points: string[] = []
-  let previous: number | undefined
-  for (let i = 0; i <= 400; i++) {
-    const x = plot.xMin + (plot.xMax - plot.xMin) * i / 400
-    try {
-      const y = calculate(plot.expression, x)
-      if (y < plot.yMin || y > plot.yMax) { previous = undefined; continue }
-      const px = plot.x + i / 400 * plot.width
-      const py = plot.y + (plot.yMax - y) / (plot.yMax - plot.yMin) * plot.height
-      const move = previous === undefined || Math.abs(py - previous) > plot.height / 2
-      points.push(`${move ? 'M' : 'L'}${px.toFixed(3)} ${py.toFixed(3)}`)
-      previous = py
-    } catch { previous = undefined }
+  let pen = '', evaluations = 0, exhausted = false
+  const value = (t: number) => {
+    if (++evaluations > 4096) { exhausted = true; return undefined }
+    try { return calculate(plot.expression, plot.xMin + (plot.xMax - plot.xMin) * t) }
+    catch { return undefined }
+  }
+  const coordinate = (t: number, y: number) => `${(plot.x + t * plot.width).toFixed(3)} ${(plot.y + (plot.yMax - Math.max(plot.yMin, Math.min(plot.yMax, y))) / (plot.yMax - plot.yMin) * plot.height).toFixed(3)}`
+  const segment = (a: number, ya: number | undefined, b: number, yb: number | undefined, depth = 0): void => {
+    if (exhausted) return
+    const middle = (a + b) / 2, ym = value(middle)
+    if ((ya === undefined && ym === undefined && yb === undefined) ||
+        [ya, ym, yb].every(y => y !== undefined && y < plot.yMin) ||
+        [ya, ym, yb].every(y => y !== undefined && y > plot.yMax)) { pen = ''; return }
+    // Check curvature before clipping: steep lines are valid; an unresolved
+    // jump is a gap. Finite sampling cannot prove continuity for every function.
+    if (ya === undefined || ym === undefined || yb === undefined || Math.abs(ym - (ya + yb) / 2) * plot.height / (plot.yMax - plot.yMin) > 0.5) {
+      if (depth < 8) { segment(a, ya, middle, ym, depth + 1); segment(middle, ym, b, yb, depth + 1) }
+      else pen = ''
+      return
+    }
+    const delta = yb - ya
+    const bounds = delta ? [(plot.yMin - ya) / delta, (plot.yMax - ya) / delta].sort((x, y) => x - y) : [0, 1]
+    const start = Math.max(0, bounds[0]), end = Math.min(1, bounds[1])
+    if (start >= end) { pen = ''; return }
+    const from = coordinate(a + (b - a) * start, ya + delta * start)
+    const to = coordinate(a + (b - a) * end, ya + delta * end)
+    if (from === to) return
+    if (pen !== from) points.push(`M${from}`)
+    points.push(`L${to}`); pen = to
+  }
+  let previous = value(0)
+  for (let i = 1; i <= 400; i++) {
+    const next = value(i / 400)
+    segment((i - 1) / 400, previous, i / 400, next)
+    if (exhausted) return '' // Do not present a partially evaluated curve as complete.
+    previous = next
   }
   return points.join(' ')
 }
